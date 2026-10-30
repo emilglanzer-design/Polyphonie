@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Polyfonie – luisterlijst</title>
+<meta name="description" content="Luisterlijst en uitleganimatie over polyfonie voor het vak muziek: klassiek, canons en pop.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: donkere concertzaal. Opener met animatie, dan een overzichtsstrook, dan drie groepen met video’s in een lijst (kader). */
+:root{
+  --bg:#120f14; --bg2:#1a1620; --paper:#211c28; --fg:#f4eee6; --muted:#a79c93; --line:#332c3b;
+  --accent:#f2b56b; --accent2:#7fd1c5; --accent3:#e98fb6; --accent4:#9fb4ff; --accent-fg:#1d1a17;
+  --frame:#2b2433; --frame-edge:#4a3f55;
+  --display:"Fraunces",Georgia,"Times New Roman",serif; --body:"Source Sans 3","Segoe UI",Helvetica,Arial,sans-serif;
+  --chip:#2a2331; --paper2:#201d15; --accent-fg2:#1d1a17; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 80px}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1}
+.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0}
+.lead{margin:0;color:var(--muted);max-width:62ch}
+
+/* top nav */
+nav.top{position:sticky;top:0;z-index:20;background:rgba(18,15,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px))) calc(-1*max(16px,env(safe-area-inset-right,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+nav.top .wrap{display:flex;align-items:center;gap:18px;height:58px;flex-wrap:wrap}
+nav.top .brand{font-family:var(--display);font-size:1.25rem;text-decoration:none;color:var(--fg)}
+nav.top .brand i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-right:10px;vertical-align:middle}
+nav.top ul{display:flex;gap:4px;list-style:none;margin:0 0 0 auto;padding:0;flex-wrap:wrap}
+nav.top li a{display:block;padding:6px 12px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:600;font-size:.92rem}
+nav.top li a:hover{color:var(--fg);background:var(--chip)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;padding-block:56px 40px}
+.hero h1{font-size:clamp(2.6rem,6vw,4.6rem);letter-spacing:-.01em}
+.hero h1 em{font-style:italic;color:var(--accent)}
+.hero p.big{font-size:1.2rem;color:var(--fg);max-width:48ch;margin:18px 0 0}
+.hero .voices{display:flex;flex-direction:column;gap:7px;width:100%;max-width:360px;margin-top:26px}
+.hero .voices span{height:4px;border-radius:2px}
+.hero .voices span:nth-child(1){background:var(--accent);width:100%}
+.hero .voices span:nth-child(2){background:var(--accent2);width:78%}
+.hero .voices span:nth-child(3){background:var(--accent3);width:90%}
+.hero .voices span:nth-child(4){background:var(--accent4);width:60%}
+.defs{display:grid;gap:14px;margin-top:30px}
+.def{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:baseline;padding:12px 0;border-top:1px solid var(--line)}
+.def b{font-family:var(--display);font-weight:600;font-size:1.15rem}
+.def span{color:var(--muted)}
+
+/* overview */
+.overview{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-block:10px 56px}
+.ov{display:flex;flex-direction:column;gap:10px;padding:22px;border-radius:16px;background:var(--paper);border:1px solid var(--line);text-decoration:none;position:relative;overflow:hidden}
+.ov::after{content:"";position:absolute;inset:auto -30px -30px auto;width:120px;height:120px;border-radius:50%;opacity:.18;background:var(--c)}
+.ov .n{font-family:var(--display);font-size:3rem;line-height:1;color:var(--c)}
+.ov h3{font-size:1.35rem}
+.ov p{margin:0;color:var(--muted);font-size:.95rem}
+.ov .go{margin-top:auto;font-weight:600;color:var(--c)}
+
+/* animation block */
+.anim{padding-block:10px 64px}
+.anim .intro{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.anim h2{font-size:clamp(1.8rem,4vw,2.6rem)}
+.anim .intro .lead{max-width:52ch}
+.anim .box{display:flex;flex-direction:column;gap:14px}
+.frame-lg{padding:14px;border-radius:22px;background:linear-gradient(160deg,var(--frame-edge),var(--frame) 40%,var(--frame));box-shadow:0 30px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+
+/* groups */
+.group{padding-block:28px 56px;border-top:1px solid var(--line)}
+.group-head{display:grid;gap:8px;margin-bottom:28px;max-width:70ch}
+.group h2{font-size:clamp(1.9rem,4.5vw,2.8rem)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:28px}
+.piece{display:flex;flex-direction:column;gap:14px;min-width:0}
+.frame{padding:10px;border-radius:18px;background:linear-gradient(160deg,var(--frame-edge),var(--frame) 45%,var(--frame));box-shadow:0 18px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)}
+.player{position:relative;aspect-ratio:16/9;max-width:100%;border-radius:10px;overflow:hidden;background:#000}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.info{display:flex;flex-direction:column;gap:4px;padding-inline:6px;min-width:0}
+.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.num{font-family:var(--display);color:var(--muted);font-variant-numeric:tabular-nums;font-size:1rem}
+.chip{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;background:var(--chip);color:var(--accent);padding:4px 10px;border-radius:999px}
+.year{font-size:.85rem;color:var(--muted)}
+.piece h3{font-size:1.45rem}
+.artist{margin:0;color:var(--muted);font-size:1rem}
+.tip{margin:8px 0 0;color:var(--fg);font-size:.97rem;padding-left:12px;border-left:2px solid var(--accent2)}
+.out{margin-top:8px;font-size:.9rem;color:var(--muted);text-decoration:none;font-weight:600;align-self:flex-start}
+.out:hover{color:var(--fg)}
+#canons .chip{color:var(--accent2)} #canons .tip{border-color:var(--accent3)}
+#pop .chip{color:var(--accent3)} #pop .tip{border-color:var(--accent4)}
+
+footer{border-top:1px solid var(--line);padding-top:22px;color:var(--muted);font-size:.9rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:28px;padding-block:36px 28px}
+  .overview{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .def{grid-template-columns:1fr;gap:4px}
+}
+@media (prefers-reduced-motion: reduce){ nav.top{backdrop-filter:none} }
+.screen{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;background:#120f14;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+canvas{display:block;width:100%;height:100%}
+.bigplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,8,12,.35);border:0;cursor:pointer;color:#fff}
+.bigplay span{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.14);backdrop-filter:blur(6px);padding:14px 26px;border-radius:999px;font:600 1.1rem var(--body)}
+.bigplay svg{width:26px;height:26px;fill:#fff}
+.bigplay:focus-visible{outline:3px solid #fff;outline-offset:-6px}
+
+.transport{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+button.ctl{font:600 .95rem var(--body);border:1px solid var(--line);background:var(--paper);color:var(--fg);padding:9px 16px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+button.ctl.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+button.ctl svg{width:16px;height:16px;fill:currentColor}
+button.ctl:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.95rem;margin-left:auto}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;cursor:pointer;position:relative}
+.progress i{display:block;height:100%;width:0;background:var(--accent)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{font:600 .88rem var(--body);background:var(--chip);color:var(--fg);border:1px solid transparent;padding:7px 13px;border-radius:999px;cursor:pointer}
+.chips button[aria-current="true"]{border-color:var(--accent);color:var(--accent)}
+.chips button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note{color:var(--muted);font-size:.92rem;margin:0}
+@media (prefers-reduced-motion: reduce){ .bigplay span{backdrop-filter:none} }
+
+.screen{box-shadow:none;border-radius:12px}
+.transport .time{margin-left:auto}
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="#top"><i></i>Polyfonie</a>
+  <ul>
+    <li><a href="#animatie">Uitleg</a></li>
+    <li><a href="#klassiek">Klassiek</a></li>
+    <li><a href="#canons">Canons</a></li>
+    <li><a href="#pop">Pop & film</a></li>
+  </ul>
+</div></nav>
+
+<main class="wrap" id="top">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Muziek · luisterlijst</p>
+      <h1>Meerdere stemmen,<br>elk met een <em>eigen</em> melodie.</h1>
+      <p class="big">Dat is polyfonie. Op deze pagina: een korte animatie die het laat zien en horen, en 25 nummers van Bach tot Billie Eilish om het zelf te ontdekken.</p>
+      <div class="voices" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="defs">
+      <div class="def"><b>Monofonie</b><span>Eén melodie, verder niets. Alleen zingen onder de douche.</span></div>
+      <div class="def"><b>Homofonie</b><span>Eén melodie is de baas, de akkoorden lopen mee. Bijna elke popsong.</span></div>
+      <div class="def"><b>Polyfonie</b><span>Meerdere stemmen met elk een eigen melodie. Niemand begeleidt, en toch past het.</span></div>
+      <div class="def"><b>Canon &amp; fuga</b><span>Twee beroemde vormen van polyfonie: dezelfde melodie later beginnen (canon), of één thema dat door alle stemmen reist (fuga).</span></div>
+    </div>
+  </header>
+
+  <section class="overview" aria-label="Overzicht">
+    <a class="ov" href="#animatie" style="--c:var(--accent4)"><span class="n">1½</span><h3>minuut uitleg</h3><p>Animatie met geluid: van één stem naar vier stemmen.</p><span class="go">Bekijk de animatie ↓</span></a>
+    <a class="ov" href="#klassiek" style="--c:var(--accent)"><span class="n">10</span><h3>Klassiek &amp; vroege muziek</h3><p>Fuga’s, missen en motetten. Tot 40 stemmen tegelijk.</p><span class="go">Naar klassiek ↓</span></a>
+    <a class="ov" href="#pop" style="--c:var(--accent3)"><span class="n">15</span><h3>Canons, pop &amp; film</h3><p>Van Vader Jacob tot Queen, Radiohead en Star Wars.</p><span class="go">Naar pop &amp; film ↓</span></a>
+  </section>
+
+  <section class="anim" id="animatie">
+    <div class="intro">
+      <div>
+        <p class="eyebrow">Eerst kijken</p>
+        <h2>Wat is polyfonie?</h2>
+      </div>
+      <p class="lead">Eerst één stem, dan akkoorden erbij, dan stemmen die allemaal hun eigen gang gaan. Zet het geluid aan: je hoort wat je ziet.</p>
+    </div>
+    <div class="box">
+      <div class="frame-lg">
+<div class="screen" id="screen">
+  <canvas id="cv" width="1280" height="720" aria-label="Animatie over polyfonie"></canvas>
+  <button class="bigplay" id="bigplay" aria-label="Afspelen"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Afspelen met geluid</span></button>
+</div>
+
+      </div>
+      <div class="progress" id="progress" role="slider" aria-label="Voortgang" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><i id="bar"></i></div>
+      <div class="transport">
+        <button class="ctl primary" id="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span id="playtxt">Afspelen</span></button>
+        <button class="ctl" id="restart"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>Opnieuw</button>
+        <button class="ctl" id="sound" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg><span id="soundtxt">Geluid aan</span></button>
+        <span class="time" id="time">0:00 / 0:00</span>
+      </div>
+      <div class="chips" id="chips" aria-label="Hoofdstukken"></div>
+    </div>
+  </section>
+
+    <section class="group" id="klassiek">
+      <div class="group-head">
+        <p class="eyebrow">10 nummers</p>
+        <h2>Klassiek &amp; vroege muziek</h2>
+        <p class="lead">Hier is polyfonie uitgevonden. Luister naar hoe stemmen één voor één binnenkomen.</p>
+      </div>
+      <div class="grid">
+      <article class="piece" id="p1">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/ddbxFi3-UO4?rel=0&modestbranding=1" title="Fuga in g-klein “Kleine fuga”, BWV 578 – Johann Sebastian Bach" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">01</span><span class="chip">4 stemmen</span><span class="year">ca. 1705</span></div>
+          <h3>Fuga in g-klein “Kleine fuga”, BWV 578</h3>
+          <p class="artist">Johann Sebastian Bach</p>
+          <p class="tip">Deze video tekent elke stem als een lijn. Tel ze mee: 1, 2, 3, 4.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=ddbxFi3-UO4" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p2">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/Tybs1T9OLBg?rel=0&modestbranding=1" title="Die Kunst der Fuge, Contrapunctus I – Johann Sebastian Bach" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">02</span><span class="chip">4 stemmen</span><span class="year">1742–1750</span></div>
+          <h3>Die Kunst der Fuge, Contrapunctus I</h3>
+          <p class="artist">Johann Sebastian Bach</p>
+          <p class="tip">Zelfde thema, vier keer. Let op wanneer het thema ondersteboven klinkt.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=Tybs1T9OLBg" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p3">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/9trH72h6EDc?rel=0&modestbranding=1" title="Jesu, Joy of Man’s Desiring – Johann Sebastian Bach" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">03</span><span class="chip">koor + orkest</span><span class="year">1723</span></div>
+          <h3>Jesu, Joy of Man’s Desiring</h3>
+          <p class="artist">Johann Sebastian Bach</p>
+          <p class="tip">De snelle triolen-lijn en het langzame koraal lopen tegelijk, los van elkaar.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=9trH72h6EDc" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p4">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/ZX4uEAU-gag?rel=0&modestbranding=1" title="Spem in alium – Thomas Tallis" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">04</span><span class="chip">40 stemmen</span><span class="year">ca. 1570</span></div>
+          <h3>Spem in alium</h3>
+          <p class="artist">Thomas Tallis</p>
+          <p class="tip">Het record van deze lijst. Acht koren van elk vijf stemmen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=ZX4uEAU-gag" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p5">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/3n8XdKkrqgo?rel=0&modestbranding=1" title="Missa Papae Marcelli: Kyrie – Giovanni Pierluigi da Palestrina" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">05</span><span class="chip">6 stemmen</span><span class="year">1562</span></div>
+          <h3>Missa Papae Marcelli: Kyrie</h3>
+          <p class="artist">Giovanni Pierluigi da Palestrina</p>
+          <p class="tip">Zo glad dat je bijna vergeet dat het zes aparte melodieën zijn.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=3n8XdKkrqgo" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p6">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/xGkb5KFwx1I?rel=0&modestbranding=1" title="Ave Maria… virgo serena – Josquin des Prez" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">06</span><span class="chip">4 stemmen</span><span class="year">ca. 1485</span></div>
+          <h3>Ave Maria… virgo serena</h3>
+          <p class="artist">Josquin des Prez</p>
+          <p class="tip">Elke zin start als een mini-canon: stem 1 begint, de rest volgt.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=xGkb5KFwx1I" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p7">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/wMw3Nj2iUNg?rel=0&modestbranding=1" title="Messiah: “And He shall purify” – Georg Friedrich Händel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">07</span><span class="chip">koor, 4 stemmen</span><span class="year">1741</span></div>
+          <h3>Messiah: “And He shall purify”</h3>
+          <p class="artist">Georg Friedrich Händel</p>
+          <p class="tip">Koorfuga: het thema springt van sopraan naar alt naar tenor naar bas.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=wMw3Nj2iUNg" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p8">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/usfiAsWR4qU?rel=0&modestbranding=1" title="Messiah: “Hallelujah” – Georg Friedrich Händel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">08</span><span class="chip">koor, 4 stemmen</span><span class="year">1741</span></div>
+          <h3>Messiah: “Hallelujah”</h3>
+          <p class="artist">Georg Friedrich Händel</p>
+          <p class="tip">Wissel af: soms zingt iedereen hetzelfde (homofoon), soms gaat elke stem los (polyfoon).</p>
+          <a class="out" href="https://www.youtube.com/watch?v=usfiAsWR4qU" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p9">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/SiX3z_fOR5k?rel=0&modestbranding=1" title="Symfonie nr. 41 “Jupiter”, finale – Wolfgang Amadeus Mozart" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">09</span><span class="chip">5 thema’s</span><span class="year">1788</span></div>
+          <h3>Symfonie nr. 41 “Jupiter”, finale</h3>
+          <p class="artist">Wolfgang Amadeus Mozart</p>
+          <p class="tip">Aan het eind klinken vijf thema’s tegelijk. Deze video laat ze als vormen zien.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=SiX3z_fOR5k" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p10">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/JvNQLJ1_HQ0?rel=0&modestbranding=1" title="Canon in D – Johann Pachelbel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">10</span><span class="chip">3 violen + bas</span><span class="year">ca. 1680</span></div>
+          <h3>Canon in D</h3>
+          <p class="artist">Johann Pachelbel</p>
+          <p class="tip">Drie violen spelen exact hetzelfde, steeds twee maten later.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=JvNQLJ1_HQ0" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" id="canons">
+      <div class="group-head">
+        <p class="eyebrow">3 nummers</p>
+        <h2>Canons om zelf te zingen</h2>
+        <p class="lead">Polyfonie in zijn simpelste vorm: iedereen zingt hetzelfde, maar niet tegelijk.</p>
+      </div>
+      <div class="grid">
+      <article class="piece" id="p11">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/vhldR386_Ng?rel=0&modestbranding=1" title="Vader Jacob – Traditioneel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">11</span><span class="chip">canon</span></div>
+          <h3>Vader Jacob</h3>
+          <p class="artist">Traditioneel</p>
+          <p class="tip">Probeer het in de klas: groep 2 start als groep 1 bij “slaapt gij nog” is.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=vhldR386_Ng" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p12">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/vJM2w1JgKws?rel=0&modestbranding=1" title="Row, Row, Row Your Boat – Traditioneel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">12</span><span class="chip">canon</span></div>
+          <h3>Row, Row, Row Your Boat</h3>
+          <p class="artist">Traditioneel</p>
+          <p class="tip">In 4 groepen wordt het pas echt vol.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=vJM2w1JgKws" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p13">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/9fhJ6XrZ4jg?rel=0&modestbranding=1" title="Dona nobis pacem – Traditioneel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">13</span><span class="chip">canon, 3 stemmen</span></div>
+          <h3>Dona nobis pacem</h3>
+          <p class="artist">Traditioneel</p>
+          <p class="tip">Drie verschillende melodieën die toevallig perfect over elkaar passen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=9fhJ6XrZ4jg" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" id="pop">
+      <div class="group-head">
+        <p class="eyebrow">12 nummers</p>
+        <h2>Pop, rock &amp; film</h2>
+        <p class="lead">Polyfonie zit ook in muziek die je al kent. Hier moet je soms even zoeken.</p>
+      </div>
+      <div class="grid">
+      <article class="piece" id="p14">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/fJ9rUzIMcZQ?rel=0&modestbranding=1" title="Bohemian Rhapsody – Queen" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">14</span><span class="chip">gestapelde vocalen</span><span class="year">1975</span></div>
+          <h3>Bohemian Rhapsody</h3>
+          <p class="artist">Queen</p>
+          <p class="tip">Het operagedeelte vanaf ongeveer 3:00: tientallen zanglijnen over elkaar.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=fJ9rUzIMcZQ" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p15">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/hL0tnrl2L_U?rel=0&modestbranding=1" title="Because – The Beatles" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">15</span><span class="chip">9 stemmen</span><span class="year">1969</span></div>
+          <h3>Because</h3>
+          <p class="artist">The Beatles</p>
+          <p class="tip">Drie zangers, drie keer opgenomen. Negen stemmen in totaal.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=hL0tnrl2L_U" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p16">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/ytN8v3ZpYhY?rel=0&modestbranding=1" title="Paperback Writer – The Beatles" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">16</span><span class="chip">tegenstem</span><span class="year">1966</span></div>
+          <h3>Paperback Writer</h3>
+          <p class="artist">The Beatles</p>
+          <p class="tip">Aan het eind zingen de achtergrondstemmen hun eigen liedje door de melodie heen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=ytN8v3ZpYhY" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p17">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/-Jj4s9I-53g?rel=0&modestbranding=1" title="Scarborough Fair / Canticle – Simon &amp; Garfunkel" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">17</span><span class="chip">2 liedjes tegelijk</span><span class="year">1966</span></div>
+          <h3>Scarborough Fair / Canticle</h3>
+          <p class="artist">Simon &amp; Garfunkel</p>
+          <p class="tip">Twee compleet verschillende liedjes, met verschillende teksten, tegelijk gezongen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=-Jj4s9I-53g" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p18">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/3cE6xndElN4?rel=0&modestbranding=1" title="Hallelujah – Pentatonix" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">18</span><span class="chip">5 stemmen a cappella</span><span class="year">2016</span></div>
+          <h3>Hallelujah</h3>
+          <p class="artist">Pentatonix</p>
+          <p class="tip">Geen instrumenten. Elke zanger heeft een eigen lijn.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=3cE6xndElN4" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p19">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/7dSFMUcTuhU?rel=0&modestbranding=1" title="In My Room – Jacob Collier" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">19</span><span class="chip">veel stemmen</span><span class="year">2016</span></div>
+          <h3>In My Room</h3>
+          <p class="artist">Jacob Collier</p>
+          <p class="tip">Allemaal door één persoon ingezongen, laag voor laag.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=7dSFMUcTuhU" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p20">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/VPLCk-FTVvw?rel=0&modestbranding=1" title="Moon River – Jacob Collier" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">20</span><span class="chip">veel stemmen</span><span class="year">2019</span></div>
+          <h3>Moon River</h3>
+          <p class="artist">Jacob Collier</p>
+          <p class="tip">Honderden stemmen, en toch hoor je afzonderlijke lijnen bewegen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=VPLCk-FTVvw" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p21">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/pbMwTqkKSps?rel=0&modestbranding=1" title="when the party’s over – Billie Eilish" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">21</span><span class="chip">gestapelde tegenstemmen</span><span class="year">2018</span></div>
+          <h3>when the party’s over</h3>
+          <p class="artist">Billie Eilish</p>
+          <p class="tip">Luister naar de zachte stemmen onder de hoofdmelodie: ze lopen hun eigen kant op.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=pbMwTqkKSps" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p22">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/fHiGbolFFGw?rel=0&modestbranding=1" title="Paranoid Android – Radiohead" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">22</span><span class="chip">meerstemmig</span><span class="year">1997</span></div>
+          <h3>Paranoid Android</h3>
+          <p class="artist">Radiohead</p>
+          <p class="tip">Het langzame middenstuk: de koorachtige stemmen gaan uit elkaar.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=fHiGbolFFGw" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p23">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/RxabLA7UQ9k?rel=0&modestbranding=1" title="Time (Inception) – Hans Zimmer" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">23</span><span class="chip">lagen</span><span class="year">2010</span></div>
+          <h3>Time (Inception)</h3>
+          <p class="artist">Hans Zimmer</p>
+          <p class="tip">Steeds komt er een laag bij die z’n eigen weg gaat. Tel de lagen.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=RxabLA7UQ9k" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p24">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/8mShLDoJsPw?rel=0&modestbranding=1" title="Duel of the Fates (Star Wars) – John Williams" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">24</span><span class="chip">koor + orkest</span><span class="year">1999</span></div>
+          <h3>Duel of the Fates (Star Wars)</h3>
+          <p class="artist">John Williams</p>
+          <p class="tip">Het koor en het orkest hebben allebei een eigen melodie.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=8mShLDoJsPw" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      <article class="piece" id="p25">
+        <div class="frame">
+          <div class="player">
+            <iframe src="https://www.youtube-nocookie.com/embed/FTQbiNvZqaY?rel=0&modestbranding=1" title="Africa – Toto" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        </div>
+        <div class="info">
+          <div class="head"><span class="num">25</span><span class="chip">refrein, 3 lijnen</span><span class="year">1982</span></div>
+          <h3>Africa</h3>
+          <p class="artist">Toto</p>
+          <p class="tip">In het refrein zingen de stemmen niet hetzelfde ritme. Dat is het trucje.</p>
+          <a class="out" href="https://www.youtube.com/watch?v=FTQbiNvZqaY" target="_blank" rel="noopener">Open op YouTube ↗</a>
+        </div>
+      </article>
+      </div>
+    </section>
+
+  <footer>
+    <span>Polyfonie · luisterlijst voor het vak muziek</span>
+    <span>Video’s via YouTube. Werkt een speler niet, gebruik dan de link eronder.</span>
+  </footer>
+</main>
+<script>
+(() => {
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const W = 1280, H = 720;
+const BEAT = 0.5; // 120 bpm
+const VJ = [[60,1],[62,1],[64,1],[60,1],[60,1],[62,1],[64,1],[60,1],[64,1],[65,1],[67,2],[64,1],[65,1],[67,2],
+  [67,.5],[69,.5],[67,.5],[65,.5],[64,1],[60,1],[67,.5],[69,.5],[67,.5],[65,.5],[64,1],[60,1],[60,1],[55,1],[60,2],[60,1],[55,1],[60,2]];
+const V2 = [[67,.5],[65,.5],[64,1],[62,.5],[64,.5],[65,1],[67,.5],[65,.5],[64,1],[62,.5],[60,.5],[59,1],[60,2],[62,1],[64,1],[65,2],[64,1],[62,1],
+  [60,.5],[62,.5],[64,.5],[65,.5],[67,1],[65,1],[64,.5],[62,.5],[60,1],[59,1],[60,1]];
+const V3 = [[48,2],[55,2],[48,2],[55,2],[53,2],[55,2],[48,2],[43,2],[48,2],[53,2],[55,2],[48,2]];
+const SUBJ = [[67,1],[74,1],[70,.5],[69,.5],[67,.5],[70,.5],[69,.5],[67,.5],[66,.5],[69,.5],[62,1]];
+const CNTR = [[70,.5],[69,.5],[67,.5],[65,.5],[67,.5],[65,.5],[63,.5],[62,.5],[63,1],[62,1],[60,1],[62,1]];
+
+function seq(list, start=0, tr=0, maxBeats=Infinity){ // -> notes {t,d,m}
+  const out=[]; let b=0;
+  for(const [m,d] of list){ if(b>=maxBeats) break; out.push({t:start+b*BEAT, d:Math.min(d,maxBeats-b)*BEAT, m:m+tr}); b+=d; }
+  return out;
+}
+function chords(list, start=0){ const out=[]; let t=start; for(const [notes,beats] of list){ for(const m of notes) out.push({t, d:beats*BEAT, m}); t+=beats*BEAT; } return out; }
+const C=[48,52,55], G=[47,50,55];
+
+const COLORS = ['#f2b56b','#7fd1c5','#e98fb6','#9fb4ff'];
+const scenes = [
+  { id:'intro', chip:'Intro', dur:6, title:'Polyfonie', sub:'Meerdere stemmen, elk met een eigen melodie.', voices:[] },
+  { id:'mono', chip:'Eén stem', dur:8, title:'Eén stem: monofonie', sub:'Eén melodie en verder niets. Zoals jij onder de douche, als niemand thuis is.',
+    voices:[{name:'Melodie', wave:'triangle', notes:seq(VJ,0.5,0,16)}] },
+  { id:'homo', chip:'Akkoorden', dur:8, title:'Melodie + akkoorden: homofonie', sub:'Eén melodie is de baas. De akkoorden lopen netjes mee. Zo klinkt bijna elke popsong.',
+    voices:[{name:'Melodie', wave:'triangle', notes:seq(VJ,0.5,0,16)},
+            {name:'Akkoorden', wave:'sine', soft:true, notes:chords([[C,2],[C,2],[C,2],[G,2],[C,2],[G,2],[C,2],[G,2]],0.5)}] },
+  { id:'poly', chip:'Polyfonie', dur:13, title:'Drie stemmen, drie melodieën: polyfonie', sub:'Niemand begeleidt. Iedereen heeft z’n eigen verhaal. En toch past het in elkaar.',
+    voices:[{name:'Stem 1', wave:'triangle', notes:seq(VJ,0.5,0,24)},
+            {name:'Stem 2', wave:'triangle', notes:seq(V2,0.5,0,24)},
+            {name:'Stem 3 (bas)', wave:'sine', notes:seq(V3,0.5,0,24)}] },
+  { id:'canon', chip:'Canon', dur:18, title:'Canon: dezelfde melodie, later beginnen', sub:'Vader Jacob is polyfonie die je al kent. Elke stem start vier tellen later.',
+    voices:[{name:'Stem 1', wave:'triangle', notes:seq(VJ,0.5,0)},
+            {name:'Stem 2', wave:'triangle', notes:seq(VJ,4.5,0)},
+            {name:'Stem 3', wave:'triangle', notes:seq(VJ,8.5,-12)}] },
+  { id:'fuga', chip:'Fuga', dur:21, title:'Fuga: één thema, vier stemmen', sub:'Elke stem komt binnen met het thema en gaat dan z’n eigen weg. Bach was hier de baas in.',
+    voices:[{name:'Sopraan', wave:'triangle', notes:seq(SUBJ,0.5,0).concat(seq(CNTR,0.5+3.5,0))},
+            {name:'Alt', wave:'triangle', notes:seq(SUBJ,4.5,-5).concat(seq(CNTR,4.5+3.5,-5))},
+            {name:'Tenor', wave:'triangle', notes:seq(SUBJ,8.5,-12).concat(seq(CNTR,8.5+3.5,-12))},
+            {name:'Bas', wave:'sine', notes:seq(SUBJ,12.5,-17).concat(seq(CNTR,12.5+3.5,-17))}] },
+  { id:'end', chip:'Samenvatting', dur:9, title:'Dus: hoeveel stemmen hoor je?', sub:'Eén melodie = monofonie. Melodie + akkoorden = homofonie. Meerdere eigen melodieën = polyfonie.', voices:[] },
+];
+let starts=[], total=0; scenes.forEach(s=>{ starts.push(total); total+=s.dur; });
+
+// ---- audio
+let ac=null, master=null, soundOn=true;
+function ensureAudio(){ if(ac) return; try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=0.22; master.connect(ac.destination);}catch(e){ ac=null; } }
+function playNote(n, voice){
+  if(!ac||!soundOn) return;
+  const o=ac.createOscillator(), g=ac.createGain(); o.type=voice.wave||'triangle';
+  o.frequency.value=440*Math.pow(2,(n.m-69)/12);
+  const t0=ac.currentTime, peak=voice.soft?0.35:0.8, d=Math.max(0.12,n.d-0.05);
+  g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(peak,t0+0.02);
+  g.gain.setTargetAtTime(peak*0.6,t0+0.05,0.15); g.gain.setTargetAtTime(0,t0+d,0.04);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0+d+0.3);
+}
+
+// ---- playback state
+let playing=false, time=0, last=null, playedUpTo={}; // playedUpTo[sceneIdx] = local time already triggered
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function sceneAt(t){ let i=scenes.length-1; for(let k=0;k<scenes.length;k++){ if(t<starts[k]+scenes[k].dur){ i=k; break; } } return i; }
+
+function tick(now){
+  if(last==null) last=now; const dt=Math.min(0.1,(now-last)/1000); last=now;
+  if(playing){ time+=dt; if(time>=total){ time=total; setPlaying(false); } }
+  const si=sceneAt(time), s=scenes[si], lt=time-starts[si];
+  // trigger audio for notes between playedUpTo and lt
+  if(playing){
+    const from = playedUpTo[si] ?? -1;
+    s.voices.forEach(v=>v.notes.forEach(n=>{ if(n.t>from && n.t<=lt) playNote(n,v); }));
+    playedUpTo[si]=lt;
+  }
+  draw(si,lt);
+  updateUI(si);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+function setPlaying(p){
+  playing=p; last=null;
+  document.getElementById('playtxt').textContent = p?'Pauze':'Afspelen';
+  document.getElementById('play').querySelector('svg path').setAttribute('d', p?'M6 5h4v14H6zm8 0h4v14h-4z':'M8 5v14l11-7z');
+  document.getElementById('bigplay').hidden = p || time>0;
+  if(p){ ensureAudio(); if(ac&&ac.state==='suspended') ac.resume(); }
+}
+function seek(t){ time=Math.max(0,Math.min(total,t)); playedUpTo={}; const si=sceneAt(time); playedUpTo[si]=time-starts[si]; document.getElementById('bigplay').hidden = time>0||playing; }
+
+// ---- drawing helpers
+const ROLL={x:0,y:200,w:W,h:430}, PLAYX=420, PPS=150;
+function yOf(m){ return ROLL.y+ROLL.h - (m-41)/(78-41)*ROLL.h; }
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function wrapText(txt,x,y,maxW,lh,font,color,align='left'){
+  ctx.font=font; ctx.fillStyle=color; ctx.textAlign=align; ctx.textBaseline='alphabetic';
+  const words=txt.split(' '); let line='', lines=[];
+  for(const w of words){ const test=line?line+' '+w:w; if(ctx.measureText(test).width>maxW&&line){ lines.push(line); line=w; } else line=test; }
+  if(line) lines.push(line); lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lh)); return lines.length;
+}
+
+function draw(si,lt){
+  const s=scenes[si];
+  // background
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#1a1620'); g.addColorStop(1,'#0f0c12');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  if(s.id==='intro') return drawIntro(lt);
+  if(s.id==='end') return drawEnd(lt);
+
+  // caption
+  const fade=Math.min(1,lt/0.6);
+  ctx.globalAlpha=fade;
+  ctx.font='400 54px "DM Serif Display",Georgia,serif'; ctx.fillStyle='#f5efe6'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillText(s.title,60,92);
+  wrapText(s.sub,60,138,1160,34,'400 27px "Source Sans 3",Arial,sans-serif','#b8afa6');
+  ctx.globalAlpha=1;
+
+  // roll grid
+  ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(ROLL.x,ROLL.y,ROLL.w,ROLL.h);
+  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+  for(let b=Math.floor((lt-3)/BEAT); b<lt/BEAT+6; b++){ const x=PLAYX+(b*BEAT-lt)*PPS; const bar=((b%4)+4)%4===0; ctx.strokeStyle=bar?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.moveTo(x,ROLL.y); ctx.lineTo(x,ROLL.y+ROLL.h); ctx.stroke(); }
+
+  // notes
+  const noteH=Math.max(10,ROLL.h/(78-41)*0.9);
+  s.voices.forEach((v,i)=>{
+    const col=COLORS[i%COLORS.length];
+    v.notes.forEach(n=>{
+      const x0=PLAYX+(n.t-lt)*PPS, x1=x0+n.d*PPS; if(x1<-20||x0>W+20) return;
+      const active=lt>=n.t&&lt<n.t+n.d, past=lt>=n.t+n.d;
+      ctx.globalAlpha=past?0.35:(x0>PLAYX?0.75:1);
+      ctx.fillStyle=col; rr(x0+1,yOf(n.m)-noteH/2,Math.max(6,x1-x0-3),noteH,5); ctx.fill();
+      if(active&&!reduce){ ctx.shadowColor=col; ctx.shadowBlur=22; ctx.fill(); ctx.shadowBlur=0; }
+    });
+  });
+  ctx.globalAlpha=1;
+
+  // connecting line per voice (shows "its own path")
+  s.voices.forEach((v,i)=>{
+    if(v.soft) return;
+    const col=COLORS[i%COLORS.length]; ctx.strokeStyle=col; ctx.globalAlpha=0.35; ctx.lineWidth=2; ctx.beginPath(); let first=true;
+    v.notes.forEach(n=>{ const x=PLAYX+(n.t-lt)*PPS+n.d*PPS/2; if(x<-50||x>W+50) return; const y=yOf(n.m); if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y); });
+    ctx.stroke(); ctx.globalAlpha=1;
+  });
+
+  // playhead
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(PLAYX,ROLL.y-10); ctx.lineTo(PLAYX,ROLL.y+ROLL.h+10); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(PLAYX-8,ROLL.y-14); ctx.lineTo(PLAYX+8,ROLL.y-14); ctx.lineTo(PLAYX,ROLL.y-2); ctx.fill();
+
+  // legend chips (bottom), count of sounding voices
+  let sounding=0; let x=60; const cy=H-46;
+  s.voices.forEach((v,i)=>{
+    const col=COLORS[i%COLORS.length];
+    const on=v.notes.some(n=>lt>=n.t&&lt<n.t+n.d); const entered=v.notes.length&&lt>=v.notes[0].t; if(on) sounding++;
+    ctx.font='600 22px "Source Sans 3",Arial,sans-serif'; const tw=ctx.measureText(v.name).width;
+    ctx.globalAlpha=entered?1:0.35; ctx.fillStyle='rgba(255,255,255,0.08)'; rr(x,cy-22,tw+54,44,22); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x+22,cy,on?10:7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#f5efe6'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(v.name,x+40,cy+1);
+    ctx.globalAlpha=1; x+=tw+70;
+  });
+  // voice counter right
+  const n=s.voices.filter(v=>v.notes.length&&lt>=v.notes[0].t).length;
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.font='400 44px "DM Serif Display",Georgia,serif'; ctx.fillStyle='#f5efe6'; ctx.fillText(String(n),W-60,cy-2);
+  ctx.font='400 20px "Source Sans 3",Arial,sans-serif'; ctx.fillStyle='#b8afa6'; ctx.fillText(n===1?'stem':'stemmen',W-60-ctx.measureText(String(n)).width-30,cy+2);
+  ctx.textBaseline='alphabetic';
+}
+
+function drawIntro(lt){
+  // four lines weaving across the screen, appearing one by one
+  for(let i=0;i<4;i++){
+    const appear=Math.min(1,Math.max(0,(lt-0.6-i*0.9)/0.8)); if(appear<=0) continue;
+    ctx.strokeStyle=COLORS[i]; ctx.lineWidth=6; ctx.globalAlpha=appear; ctx.lineCap='round'; ctx.beginPath();
+    const len=Math.floor(appear*W);
+    for(let x=0;x<=len;x+=8){ const ph=reduce?0:lt*1.2; const y=360+Math.sin(x/140+i*1.6+ph)*(60+i*22)+Math.sin(x/53-ph*0.7+i)*14; if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  const tf=1;
+  ctx.globalAlpha=tf; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.font='400 128px "DM Serif Display",Georgia,serif'; ctx.fillStyle='#f5efe6'; ctx.fillText('Polyfonie',W/2,200);
+  const sf=Math.min(1,Math.max(0,(lt-4.2)/0.8));
+  ctx.globalAlpha=sf; ctx.font='400 32px "Source Sans 3",Arial,sans-serif'; ctx.fillStyle='#e6ddd3';
+  ctx.fillText('poly = veel  ·  fonie = klank', W/2, 600);
+  ctx.fillText('Meerdere stemmen, elk met een eigen melodie.', W/2, 648);
+  ctx.globalAlpha=1;
+}
+
+function drawEnd(lt){
+  ctx.textAlign='center'; ctx.font='400 52px "DM Serif Display",Georgia,serif'; ctx.fillStyle='#f5efe6'; ctx.fillText('Hoeveel stemmen hoor je?',W/2,96);
+  const cols=[{t:'Monofonie',s:'één melodie',n:1},{t:'Homofonie',s:'melodie + akkoorden',n:2},{t:'Polyfonie',s:'meerdere eigen melodieën',n:3}];
+  const cw=360, gap=40, x0=(W-(cw*3+gap*2))/2;
+  cols.forEach((c,i)=>{
+    const ap=Math.min(1,Math.max(0,(lt-0.5-i*1.4)/0.7)); if(ap<=0) return; ctx.globalAlpha=ap;
+    const x=x0+i*(cw+gap), y=170, h=380;
+    ctx.fillStyle='rgba(255,255,255,0.06)'; rr(x,y,cw,h,18); ctx.fill();
+    // mini picture
+    const px=x+30, pw=cw-60, py=y+40, ph=190;
+    if(c.n===1){ line(px,pw,py+90,COLORS[0],0); }
+    if(c.n===2){ line(px,pw,py+40,COLORS[0],0); for(let k=0;k<4;k++){ ctx.fillStyle=COLORS[1]; ctx.globalAlpha=ap*0.7; rr(px+k*(pw/4)+4,py+110,pw/4-8,70,6); ctx.fill(); ctx.globalAlpha=ap; } }
+    if(c.n===3){ line(px,pw,py+30,COLORS[0],0); line(px,pw,py+95,COLORS[2],2.1); line(px,pw,py+160,COLORS[1],4.2); }
+    ctx.textAlign='center'; ctx.font='400 40px "DM Serif Display",Georgia,serif'; ctx.fillStyle='#f5efe6'; ctx.fillText(c.t,x+cw/2,y+h-80);
+    ctx.font='400 24px "Source Sans 3",Arial,sans-serif'; ctx.fillStyle='#b8afa6'; ctx.fillText(c.s,x+cw/2,y+h-40);
+  });
+  ctx.globalAlpha=Math.min(1,Math.max(0,(lt-5.2)/0.8));
+  ctx.font='400 28px "Source Sans 3",Arial,sans-serif'; ctx.fillStyle='#e6ddd3'; ctx.textAlign='center';
+  ctx.fillText('Polyfonie: elke stem is zelf een melodie, en samen klopt het toch.', W/2, 640);
+  ctx.globalAlpha=1;
+  function line(px,pw,y,col,ph){ ctx.strokeStyle=col; ctx.lineWidth=6; ctx.lineCap='round'; ctx.beginPath(); for(let k=0;k<=pw;k+=6){ const yy=y+Math.sin(k/40+ph+(reduce?0:lt*1.5))*18; if(k===0) ctx.moveTo(px+k,yy); else ctx.lineTo(px+k,yy); } ctx.stroke(); }
+}
+
+// ---- UI
+const chipsEl=document.getElementById('chips');
+scenes.forEach((s,i)=>{ const b=document.createElement('button'); b.textContent=s.chip; b.id='chip-'+s.id; b.addEventListener('click',()=>{ seek(starts[i]); if(!playing) setPlaying(true); }); chipsEl.appendChild(b); });
+function fmt(t){ t=Math.floor(t); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
+let lastSi=-1;
+function updateUI(si){
+  document.getElementById('bar').style.width=(time/total*100)+'%';
+  document.getElementById('progress').setAttribute('aria-valuenow',Math.round(time/total*100));
+  document.getElementById('time').textContent=fmt(time)+' / '+fmt(total);
+  if(si!==lastSi){ lastSi=si; chipsEl.querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-current',i===si?'true':'false')); }
+}
+document.getElementById('play').addEventListener('click',()=>{ if(time>=total) seek(0); setPlaying(!playing); });
+document.getElementById('bigplay').addEventListener('click',()=>setPlaying(true));
+document.getElementById('restart').addEventListener('click',()=>{ seek(0); setPlaying(true); });
+document.getElementById('sound').addEventListener('click',e=>{ soundOn=!soundOn; e.currentTarget.setAttribute('aria-pressed',String(soundOn)); document.getElementById('soundtxt').textContent=soundOn?'Geluid aan':'Geluid uit'; });
+const prog=document.getElementById('progress');
+prog.addEventListener('click',e=>{ const r=prog.getBoundingClientRect(); seek((e.clientX-r.left)/r.width*total); });
+prog.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') seek(time+5); if(e.key==='ArrowLeft') seek(time-5); });
+document.addEventListener('keydown',e=>{ if(e.key===' '&&e.target.tagName!=='BUTTON'){ e.preventDefault(); setPlaying(!playing); } });
+
+// hi-dpi
+function fit(){ const r=cv.getBoundingClientRect(); const dpr=Math.min(2,devicePixelRatio||1); cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr); ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0); }
+new ResizeObserver(fit).observe(cv); fit();
+draw(0,0);
+})();
+</script>
+</body>
+</html>
