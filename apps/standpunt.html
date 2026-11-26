@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standpunt</title>
+<link rel="stylesheet" href="../te-glas.css">
+<style>
+/* Standpunt: stelling boven, veld met twee assen in het midden, vier spelerhoeken. */
+.pagina{position:relative;z-index:1;height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:14px;padding:18px 270px 18px 270px}
+.stelling{padding:16px 22px;display:grid;gap:8px;text-align:center}
+.stelling .tekst{font:800 clamp(24px,2.6vw,40px)/1.1 var(--f);letter-spacing:-.025em}
+.stelling .label b{color:var(--ink)}
+.veld{position:relative;padding:0;overflow:hidden}
+.veld svg.assen{position:absolute;inset:0;width:100%;height:100%}
+.as{position:absolute;font:600 11px var(--m);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);background:rgba(250,250,247,.95);padding:5px 9px;z-index:2;border-radius:999px;border:1px solid rgba(255,255,255,.8)}
+.as.l{left:14px;top:50%;transform:translateY(-50%)}.as.r{right:14px;top:50%;transform:translateY(-50%)}
+.as.b{top:14px;left:50%;transform:translateX(-50%)}.as.o{bottom:14px;left:50%;transform:translateX(-50%)}
+.stip{position:absolute;width:var(--d);height:var(--d);margin:calc(var(--d) / -2) 0 0 calc(var(--d) / -2);border-radius:50%;background:var(--k);border:3px solid #fff;
+  box-shadow:0 8px 22px -6px rgba(0,0,0,.45);display:grid;place-items:center;font:700 14px var(--m);color:#111;transition:width .15s,height .15s,margin .15s,opacity .4s,transform .4s}
+.stip.verborgen{opacity:0;transform:scale(.3)}
+.spook{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px dashed var(--k);opacity:.8}
+.gem{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;display:none}
+.gem.aan{display:block}
+.onthul{position:absolute;inset:0;display:none;place-items:center;pointer-events:none}
+.onthul.aan{display:grid;animation:weg 1.6s forwards}
+.onthul b{font:800 72px/1 var(--f);letter-spacing:-.04em;color:var(--oranje)}
+@keyframes weg{0%{opacity:0;transform:scale(.8)}20%{opacity:1;transform:scale(1)}70%{opacity:1}100%{opacity:0}}
+.onder{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:12px 16px}
+.vraag{font:600 15px/1.35 var(--f)}
+.vraag .label{display:block;margin-bottom:4px}
+.eigen{display:flex;gap:8px}
+.eigen input{font:500 13px var(--f);padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.15);background:rgba(255,255,255,.7);width:260px}
+.hoek .status{font:700 11px var(--m);letter-spacing:.12em;text-transform:uppercase}
+.hoek .status.klaar{color:#118a49}
+@media (max-width:1300px){.pagina{padding:18px 260px}}
+</style>
+</head>
+<body>
+<div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
+<div class="pagina">
+  <section class="stelling glas sterk">
+    <div class="label">05 · standpunt · stelling <b id="nr">1</b> / <span id="tot"></span> · <span id="modus">blind</span></div>
+    <div class="tekst" id="stelling"></div>
+  </section>
+  <section class="veld glas" id="veld">
+    <svg class="assen" id="assen"></svg>
+    <span class="as l">◀ oneens</span><span class="as r">eens ▶</span>
+    <span class="as b">▲ vind ik belangrijk</span><span class="as o">▼ maakt me weinig uit</span>
+    <svg class="gem" id="gem" viewBox="0 0 26 26"><path d="M13 1v24M1 13h24" stroke="#111" stroke-width="2"/><circle cx="13" cy="13" r="6" fill="none" stroke="#111" stroke-width="2"/></svg>
+    <div class="onthul" id="onthul"><b>ONTHULD</b></div>
+  </section>
+  <footer class="onder glas">
+    <div class="vraag" id="vraag"><span class="label">zo werkt het</span>Iedereen zet zijn stip, onzichtbaar voor de rest. Druk op toets 2 als je klaar bent. Als iedereen klaar is, zie je waar iedereen staat.</div>
+    <div class="eigen"><input id="eigenTekst" placeholder="Eigen stelling typen…"><button class="knop oranje" id="eigenKnop">+ toevoegen</button></div>
+  </footer>
+</div>
+<div class="hoek glas h1" id="h1"></div><div class="hoek glas h2" id="h2"></div><div class="hoek glas h3" id="h3"></div><div class="hoek glas h4" id="h4"></div>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KLEUR = { 1: '#ff7a1a', 2: '#3b8bff', 3: '#21c06b', 4: '#b768ff' };
+  var STELLINGEN = [
+    'Telefoons moeten de hele schooldag in een kluisje.',
+    'Het schoolplein moet groener, ook als er minder ruimte is om te voetballen.',
+    'Iedereen van 16 jaar mag stemmen.',
+    'Sociale media maken jongeren onzeker.',
+    'AI mag je huiswerk maken.',
+    'Graffiti is kunst.',
+    'Een schooluniform is eerlijker voor iedereen.',
+    'Je mag alles zeggen, ook als het iemand kwetst.',
+    'Energydrinks moeten verboden worden onder de 16.',
+    'Influencer is een echt beroep.',
+    'Gamen is ook sport.',
+    'Een ontwerper is verantwoordelijk voor wat mensen met zijn ontwerp doen.',
+    'Een mooi ontwerp is belangrijker dan een handig ontwerp.',
+    'Vlees zou duurder moeten worden.'
+  ];
+  try { var bewaard = JSON.parse(localStorage.getItem('standpunt-eigen') || '[]'); STELLINGEN = STELLINGEN.concat(bewaard); } catch (e) {}
+
+  var veld = document.getElementById('veld');
+  var sp = {}, actief = {}, st = { i: 0, blind: true, onthuld: false };
+  for (var s = 1; s <= 4; s++) {
+    var el = document.createElement('div'); el.className = 'stip verborgen'; el.style.setProperty('--k', KLEUR[s]); el.textContent = s; veld.appendChild(el);
+    var sk = document.createElement('div'); sk.className = 'spook'; sk.style.setProperty('--k', KLEUR[s]); sk.style.display = 'none'; veld.appendChild(sk);
+    sp[s] = { x: 0, y: 0, zeker: 3, klaar: false, el: el, spook: sk, eerst: null };
+  }
+
+  function nieuweStelling(i) {
+    st.i = (i + STELLINGEN.length) % STELLINGEN.length; st.onthuld = false;
+    for (var s = 1; s <= 4; s++) {
+      var p = sp[s];
+      p.x = (s % 2 ? -1 : 1) * 0.08; p.y = (s < 3 ? -1 : 1) * 0.08; p.klaar = false; p.eerst = null;
+      p.spook.style.display = 'none';
+      if (actief[s]) Kastjes.led(s, '#202020');
+    }
+    document.getElementById('stelling').textContent = STELLINGEN[st.i];
+    document.getElementById('nr').textContent = st.i + 1;
+    document.getElementById('tot').textContent = STELLINGEN.length;
+    document.getElementById('gem').classList.remove('aan');
+    zetVraag('zo werkt het', st.blind ? 'Iedereen zet zijn stip, onzichtbaar voor de rest. Druk op toets 2 als je klaar bent. Als iedereen klaar is, zie je waar iedereen staat.' : 'Open ronde: iedereen ziet elkaars stip meteen. Praat erover terwijl je schuift.');
+    tekenAssen(); hoeken();
+  }
+  function zetVraag(kop, tekst) { document.getElementById('vraag').innerHTML = '<span class="label">' + kop + '</span>' + tekst; }
+
+  function tekenAssen() {
+    var r = veld.getBoundingClientRect(), svg = document.getElementById('assen');
+    svg.setAttribute('viewBox', '0 0 ' + r.width + ' ' + r.height);
+    var w = r.width, h = r.height, l = '';
+    for (var i = 1; i < 10; i++) { l += '<line x1="' + w * i / 10 + '" y1="0" x2="' + w * i / 10 + '" y2="' + h + '" stroke="rgba(0,0,0,.06)"/>'; l += '<line x1="0" y1="' + h * i / 10 + '" x2="' + w + '" y2="' + h * i / 10 + '" stroke="rgba(0,0,0,.06)"/>'; }
+    l += '<line x1="' + w / 2 + '" y1="0" x2="' + w / 2 + '" y2="' + h + '" stroke="#111" stroke-width="1.5"/><line x1="0" y1="' + h / 2 + '" x2="' + w + '" y2="' + h / 2 + '" stroke="#111" stroke-width="1.5"/>';
+    svg.innerHTML = l + '<g id="lijnen"></g>';
+  }
+  addEventListener('resize', tekenAssen);
+
+  function px(p) { var r = veld.getBoundingClientRect(); return { x: (p.x + 1) / 2 * r.width, y: (p.y + 1) / 2 * r.height }; }
+
+  function hoeken() {
+    for (var s = 1; s <= 4; s++) {
+      var p = sp[s], el = document.getElementById('h' + s);
+      el.style.setProperty('--k', KLEUR[s]);
+      el.classList.toggle('slaapt', !actief[s]);
+      var eens = Math.round((p.x + 1) * 50), bel = Math.round((1 - p.y) * 50);
+      var toon = !st.blind || st.onthuld;
+      el.innerHTML = '<div class="top"><span class="badge">' + s + '</span><span class="naam">Speler ' + s + '</span></div>' +
+        '<div class="status ' + (p.klaar ? 'klaar' : '') + '">' + (!actief[s] ? 'druk iets om mee te doen' : p.klaar ? '✓ klaar' : 'kiest…') + '</div>' +
+        '<div class="rij"><span>eens</span><b>' + (toon ? eens + '%' : '••') + '</b></div>' +
+        '<div class="rij"><span>belangrijk</span><b>' + (toon ? bel + '%' : '••') + '</b></div>' +
+        '<div class="rij"><span>zekerheid</span><b>' + '■'.repeat(p.zeker) + '□'.repeat(5 - p.zeker) + '</b></div>';
+    }
+  }
+
+  function iedereenKlaar() {
+    var n = 0;
+    for (var s = 1; s <= 4; s++) if (actief[s]) { n++; if (!sp[s].klaar) return false; }
+    return n > 0;
+  }
+  function onthul() {
+    st.onthuld = true;
+    var o = document.getElementById('onthul'); o.classList.remove('aan'); void o.offsetWidth; o.classList.add('aan');
+    for (var s = 1; s <= 4; s++) if (actief[s]) { sp[s].eerst = { x: sp[s].x, y: sp[s].y }; Kastjes.led(s, KLEUR[s]); }
+    analyse();
+  }
+  function analyse() {
+    var lijst = [];
+    for (var s = 1; s <= 4; s++) if (actief[s]) lijst.push(s);
+    var gx = 0, gy = 0; lijst.forEach(function (s) { gx += sp[s].x; gy += sp[s].y; });
+    var g = { x: gx / lijst.length, y: gy / lijst.length }, gp = px(g), gem = document.getElementById('gem');
+    gem.style.left = gp.x + 'px'; gem.style.top = gp.y + 'px'; gem.classList.add('aan');
+    var a = 0, b = 0, max = -1;
+    for (var i = 0; i < lijst.length; i++) for (var j = i + 1; j < lijst.length; j++) {
+      var d = Math.hypot(sp[lijst[i]].x - sp[lijst[j]].x, sp[lijst[i]].y - sp[lijst[j]].y);
+      if (d > max) { max = d; a = lijst[i]; b = lijst[j]; }
+    }
+    var lijnen = document.getElementById('lijnen');
+    if (lijnen) lijnen.innerHTML = '';
+    if (lijst.length < 2) { zetVraag('gespreksvraag', 'Leg uit waarom je daar staat. Wat zou iemand zeggen die het helemaal oneens is?'); return; }
+    var pa = px(sp[a]), pb = px(sp[b]);
+    if (lijnen) lijnen.innerHTML = '<line x1="' + pa.x + '" y1="' + pa.y + '" x2="' + pb.x + '" y2="' + pb.y + '" stroke="#ff5a00" stroke-width="3" stroke-dasharray="8 8"/>';
+    if (max < 0.35) zetVraag('jullie zijn het eens', 'Jullie staan dicht bij elkaar. Bedenk samen het sterkste argument van iemand die het er níét mee eens is.');
+    else zetVraag('gespreksvraag', '<b style="color:' + KLEUR[a] + '">Speler ' + a + '</b> en <b style="color:' + KLEUR[b] + '">speler ' + b + '</b> staan het verst uit elkaar. Leg om de beurt uit waarom je daar staat. Wie overtuigd raakt, mag zijn stip verschuiven.');
+  }
+
+  Kastjes.on(function (e) {
+    var s = e.speler, p = sp[s];
+    if (!actief[s]) { actief[s] = true; Kastjes.led(s, st.onthuld ? KLEUR[s] : '#202020'); if (st.onthuld) p.eerst = { x: p.x, y: p.y }; }
+    if (e.type === 'knop' && e.welke === 'links') p.zeker = Math.max(1, Math.min(5, p.zeker + e.stap));
+    else if (e.type === 'knop' && e.welke === 'rechts') nieuweStelling(st.i + e.stap);
+    else if (e.type === 'toets') toets(e);
+    hoeken();
+  });
+  var tv = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {};
+  function toets(e) {
+    var s = e.speler; tv[s][e.nr] = e.ingedrukt;
+    if (tv[s][1] && tv[s][2]) combo[s] = true;
+    if (e.ingedrukt) return;
+    if (combo[s]) { if (!tv[s][1] && !tv[s][2]) combo[s] = false; return; }
+    if (e.nr === 1) { st.blind = !st.blind; document.getElementById('modus').textContent = st.blind ? 'blind' : 'open'; nieuweStelling(st.i); }
+    if (e.nr === 2 && !st.onthuld && st.blind) {
+      sp[s].klaar = !sp[s].klaar;
+      Kastjes.led(s, sp[s].klaar ? KLEUR[s] : '#202020');
+      if (iedereenKlaar()) setTimeout(onthul, 350);
+    }
+  }
+
+  var vorige = performance.now();
+  function lus(nu) {
+    var dt = Math.min(0.05, (nu - vorige) / 1000); vorige = nu;
+    var toon = !st.blind || st.onthuld, bewogen = false;
+    for (var s = 1; s <= 4; s++) {
+      var p = sp[s];
+      if (actief[s] && !p.klaar || (actief[s] && st.onthuld)) {
+        var j = Kastjes.joystick(s);
+        if (j.x || j.y) { p.x = Math.max(-0.96, Math.min(0.96, p.x + j.x * 0.7 * dt)); p.y = Math.max(-0.94, Math.min(0.94, p.y + j.y * 0.7 * dt)); bewogen = true; }
+      }
+      var q = px(p), d = 26 + p.zeker * 9;
+      p.el.style.left = q.x + 'px'; p.el.style.top = q.y + 'px'; p.el.style.setProperty('--d', d + 'px');
+      p.el.classList.toggle('verborgen', !(actief[s] && toon));
+      if (p.eerst && st.onthuld && Math.hypot(p.eerst.x - p.x, p.eerst.y - p.y) > 0.05) {
+        var e0 = px(p.eerst); p.spook.style.display = 'block'; p.spook.style.left = e0.x + 'px'; p.spook.style.top = e0.y + 'px';
+      } else p.spook.style.display = 'none';
+    }
+    if (bewogen) { hoeken(); if (st.onthuld) analyse(); }
+    requestAnimationFrame(lus);
+  }
+
+  document.getElementById('eigenKnop').addEventListener('click', function () {
+    var inp = document.getElementById('eigenTekst'), t = inp.value.trim();
+    if (!t) return;
+    STELLINGEN.push(t); inp.value = '';
+    try { var b = JSON.parse(localStorage.getItem('standpunt-eigen') || '[]'); b.push(t); localStorage.setItem('standpunt-eigen', JSON.stringify(b)); } catch (e) {}
+    nieuweStelling(STELLINGEN.length - 1); inp.blur();
+  });
+
+  nieuweStelling(0);
+  requestAnimationFrame(lus);
+})();
+</script>
+</body>
+</html>

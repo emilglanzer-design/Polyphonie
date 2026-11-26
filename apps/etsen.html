@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etsmachine</title>
+<link rel="stylesheet" href="../te-glas.css">
+<style>
+/* Etsmachine: één pen, vier taken. Doek in het midden, taakkaarten links en rechts. */
+.pagina{position:relative;z-index:1;height:100vh;display:grid;grid-template-columns:250px 1fr 250px;grid-template-rows:auto 1fr;gap:16px;padding:18px 22px 20px 40px}
+.kopbalk{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;padding:14px 20px}
+.titel{display:flex;align-items:baseline;gap:12px}.titel .kop span{color:var(--oranje)}
+.opdracht{display:flex;align-items:center;gap:14px;justify-self:center}
+.opdracht .wat{font:800 24px/1 var(--f);letter-spacing:-.02em}
+.score{display:flex;gap:22px;align-items:baseline}
+.score div{display:grid;gap:2px;text-align:right}
+.score b{font:700 30px/1 var(--m)}
+.kolom{display:grid;grid-template-rows:1fr 1fr;gap:16px;min-height:0}
+.taak{padding:14px 16px;display:grid;align-content:start;gap:10px;transition:box-shadow .2s}
+.taak .ikoon{width:54px;height:54px}
+.taak .naam{font:800 22px/1 var(--f);letter-spacing:-.02em}
+.taak .wie{display:flex;gap:6px;flex-wrap:wrap}
+.taak .wie span{padding:4px 8px;border-radius:999px;background:var(--k);font:700 11px var(--m);color:#111}
+.taak .wie em{font:500 11px var(--m);color:var(--muted);font-style:normal}
+.taak .uitleg{font-size:13px;color:var(--ink-2);line-height:1.35}
+.taak .waarde{font:700 13px var(--m)}
+.taak.bezig{box-shadow:inset 0 1px 0 #fff,0 0 0 2.5px var(--k),0 24px 60px -28px rgba(0,0,0,.35)}
+.lijst{display:grid;gap:4px}
+.doekvak{display:grid;place-items:center;min-height:0;min-width:0;padding:16px}
+.lijst{font:500 11px var(--m)}
+.kader{position:relative;padding:14px;border-radius:26px;background:linear-gradient(#2a2a2a,#151515);box-shadow:0 30px 70px -30px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.15)}
+.kader canvas{display:block;border-radius:14px;background:#d9d9d2}
+.kader .knopje{position:absolute;bottom:-34px;width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fafaf6,#cfcfc8);border:1px solid rgba(0,0,0,.25);box-shadow:0 6px 12px -4px rgba(0,0,0,.4)}
+.kader .knopje i{position:absolute;left:50%;top:6px;width:3px;height:16px;margin-left:-1.5px;background:var(--oranje);border-radius:2px;transform-origin:50% 20px}
+.kader .knopje.l{left:24px}.kader .knopje.r{right:24px}
+.klaar{position:absolute;inset:0;display:none;place-items:center;z-index:5}
+.klaar.aan{display:grid}
+.klaar .glas{padding:22px 30px;text-align:center;display:grid;gap:8px}
+</style>
+</head>
+<body>
+<div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
+<div class="pagina">
+  <header class="kopbalk glas">
+    <div class="titel"><span class="nr">04</span><h1 class="kop">ETS<span>MACHINE</span></h1></div>
+    <div class="opdracht"><span class="label">opdracht <span id="opNr">1</span></span><span class="wat" id="opWat">Overtrek de trap</span></div>
+    <div class="score">
+      <div><span class="label">gevolgd</span><b id="gevolgd">0%</b></div>
+      <div><span class="label">ernaast</span><b id="ernaast">0%</b></div>
+      <div><span class="label">tijd</span><b id="tijd">0:00</b></div>
+    </div>
+  </header>
+  <div class="kolom" id="links"></div>
+  <div class="doekvak"><div class="kader" id="kader"><canvas id="doek"></canvas><div class="knopje l"><i id="kl"></i></div><div class="knopje r"><i id="kr"></i></div>
+    <div class="klaar" id="klaar"><div class="glas sterk"><div class="label">gelukt</div><div class="kop" id="klaarTekst">Goed samengewerkt</div><div class="label">toets 1 = volgende opdracht</div></div></div></div></div>
+  <div class="kolom" id="rechts"></div>
+</div>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KLEUR = { 1: '#ff7a1a', 2: '#3b8bff', 3: '#21c06b', 4: '#b768ff' };
+  var W = 1000, H = 640;
+  var cv = document.getElementById('doek'), ctx = cv.getContext('2d');
+  var inkt = document.createElement('canvas'), ictx = inkt.getContext('2d');
+  inkt.width = W; inkt.height = H;
+
+  function maat() {
+    var vak = cv.parentNode.parentNode.getBoundingClientRect();
+    var sch = Math.min((vak.width - 60) / W, (vak.height - 80) / H);
+    var dpr = Math.min(2, devicePixelRatio || 1);
+    cv.style.width = W * sch + 'px'; cv.style.height = H * sch + 'px';
+    cv.width = W * sch * dpr; cv.height = H * sch * dpr;
+    ctx.setTransform(sch * dpr, 0, 0, sch * dpr, 0, 0);
+  }
+  addEventListener('resize', maat);
+
+  // ---------- opdrachten: lijnen om over te trekken ----------
+  function vorm(punten) { return punten.map(function (p) { return { x: p[0], y: p[1] }; }); }
+  function param(f, n) { var a = []; for (var i = 0; i <= n; i++) a.push(f(i / n)); return vorm(a); }
+  var OPDRACHTEN = [
+    { naam: 'Overtrek de trap', pad: vorm([[180, 520], [180, 440], [300, 440], [300, 360], [420, 360], [420, 280], [540, 280], [540, 200], [660, 200], [660, 120], [820, 120]]) },
+    { naam: 'Overtrek het huis', pad: vorm([[330, 540], [330, 300], [500, 150], [670, 300], [670, 540], [330, 540], [330, 300], [670, 300], [670, 540], [540, 540], [540, 420], [460, 420], [460, 540]]) },
+    { naam: 'Overtrek de golf', pad: param(function (t) { return [140 + t * 720, 320 + Math.sin(t * Math.PI * 4) * 140]; }, 160) },
+    { naam: 'Overtrek de ster', pad: param(function (t) { var i = Math.round(t * 10), r = i % 2 ? 105 : 250, a = -Math.PI / 2 + i * Math.PI / 5; return [500 + Math.cos(a) * r, 340 + Math.sin(a) * r]; }, 10) },
+    { naam: 'Overtrek het hart', pad: param(function (t) { var a = t * Math.PI * 2; return [500 + 16 * Math.pow(Math.sin(a), 3) * 15, 300 - (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * 15]; }, 200) },
+    { naam: 'Overtrek de spiraal', pad: param(function (t) { var a = t * Math.PI * 6, r = 20 + t * 250; return [500 + Math.cos(a) * r, 330 + Math.sin(a) * r * 0.9]; }, 300) },
+    { naam: 'Vrij: teken samen een robot', pad: null },
+    { naam: 'Vrij: schrijf de naam van jullie groep', pad: null }
+  ];
+  // pad omzetten naar punten om de 6 px
+  function verdicht(pad) {
+    var uit = [];
+    for (var i = 1; i < pad.length; i++) {
+      var a = pad[i - 1], b = pad[i], d = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.ceil(d / 6));
+      for (var k = 0; k < n; k++) uit.push({ x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n, ok: false });
+    }
+    uit.push({ x: pad[pad.length - 1].x, y: pad[pad.length - 1].y, ok: false });
+    return uit;
+  }
+
+  // ---------- taken ----------
+  var TAKEN = [
+    { id: 'hor', naam: 'Links-rechts', uitleg: 'Draai knop rechts of duw de joystick naar links/rechts.',
+      ikoon: '<svg viewBox="0 0 54 54" class="ikoon"><path d="M8 27h38M8 27l8-7M8 27l8 7M46 27l-8-7M46 27l-8 7" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+    { id: 'ver', naam: 'Op-neer', uitleg: 'Draai knop rechts of duw de joystick omhoog/omlaag.',
+      ikoon: '<svg viewBox="0 0 54 54" class="ikoon"><path d="M27 8v38M27 8l-7 8M27 8l7 8M27 46l-7-8M27 46l7-8" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+    { id: 'kleur', naam: 'Kleur', uitleg: 'Knop rechts: kleur. Knop links: dikte.',
+      ikoon: '<svg viewBox="0 0 54 54" class="ikoon"><circle cx="20" cy="22" r="12" fill="#ff5a00" opacity=".85"/><circle cx="34" cy="22" r="12" fill="#3b8bff" opacity=".85"/><circle cx="27" cy="34" r="12" fill="#21c06b" opacity=".85"/></svg>' },
+    { id: 'pen', naam: 'Pen', uitleg: 'Joystick indrukken: pen op of neer. Knop rechts: lijnsoort.',
+      ikoon: '<svg viewBox="0 0 54 54" class="ikoon"><path d="M14 40l4-12 20-20 8 8-20 20z" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M14 40l12-4" stroke="#ff5a00" stroke-width="3"/></svg>' }
+  ];
+  var kaarten = {};
+  TAKEN.forEach(function (t, i) {
+    var el = document.createElement('section');
+    el.className = 'taak glas';
+    el.innerHTML = t.ikoon + '<div class="label">taak ' + (i + 1) + '</div><div class="naam">' + t.naam + '</div><div class="wie"></div><div class="uitleg">' + t.uitleg + '</div><div class="waarde"></div>';
+    document.getElementById(i % 2 ? 'rechts' : 'links').appendChild(el);
+    kaarten[t.id] = el;
+  });
+
+  // ---------- toestand ----------
+  var KLEUREN = ['#111111', '#ff5a00', '#3b8bff', '#21c06b', '#b768ff', '#e8b400', '#e0306a', '#ffffff'];
+  var LIJN = ['vol', 'stippel', 'spray'];
+  var st = { x: 0, y: 0, pen: true, kleur: 0, dikte: 6, lijn: 0, op: 0, gestart: 0, punten: null, klaar: false, schuif: 0 };
+  var actief = {}; // spelers die meedoen (eerste gebeurtenis)
+  var wieDoetWat = {}; // taak -> [spelers]
+  var hoek = { l: 0, r: 0 };
+
+  function verdeel() {
+    var sp = Object.keys(actief).map(Number).sort();
+    if (!sp.length) sp = [1];
+    // rondschuiven met toets 2
+    var n = sp.length, verdeling = { 1: [[0, 1, 2, 3]], 2: [[0, 2], [1, 3]], 3: [[0], [1], [2, 3]], 4: [[0], [1], [2], [3]] }[n];
+    wieDoetWat = { hor: [], ver: [], kleur: [], pen: [] };
+    sp.forEach(function (s, i) {
+      verdeling[(i + st.schuif) % n].forEach(function (t) { wieDoetWat[TAKEN[t].id].push(s); });
+    });
+    TAKEN.forEach(function (t) {
+      var el = kaarten[t.id], w = wieDoetWat[t.id];
+      el.style.setProperty('--k', KLEUR[w[0]] || '#ccc');
+      el.querySelector('.wie').innerHTML = w.length ? w.map(function (s) { return '<span style="--k:' + KLEUR[s] + '">speler ' + s + '</span>'; }).join('') : '<em>niemand</em>';
+    });
+  }
+  function taakVan(s) { var t = []; for (var k in wieDoetWat) if (wieDoetWat[k].indexOf(s) >= 0) t.push(k); return t; }
+
+  function nieuweOpdracht(i) {
+    st.op = (i + OPDRACHTEN.length) % OPDRACHTEN.length;
+    var o = OPDRACHTEN[st.op];
+    st.punten = o.pad ? verdicht(o.pad) : null;
+    var begin = o.pad ? o.pad[0] : { x: 120, y: 520 };
+    st.x = begin.x; st.y = begin.y; st.klaar = false; st.gestart = 0; st.ernaast = 0; st.totaal = 0;
+    ictx.clearRect(0, 0, W, H);
+    document.getElementById('opNr').textContent = st.op + 1;
+    document.getElementById('opWat').textContent = o.naam;
+    document.getElementById('klaar').classList.remove('aan');
+    laatste = { x: st.x, y: st.y };
+  }
+
+  // ---------- tekenen ----------
+  var laatste = null, sprayT = 0;
+  function zet(nx, ny) {
+    nx = Math.max(6, Math.min(W - 6, nx)); ny = Math.max(6, Math.min(H - 6, ny));
+    if (nx === st.x && ny === st.y) return;
+    if (!st.gestart) st.gestart = performance.now();
+    if (st.pen) {
+      var kl = KLEUREN[st.kleur];
+      ictx.strokeStyle = kl; ictx.fillStyle = kl; ictx.lineWidth = st.dikte; ictx.lineCap = 'round'; ictx.lineJoin = 'round';
+      if (st.lijn === 0) { ictx.setLineDash([]); ictx.beginPath(); ictx.moveTo(st.x, st.y); ictx.lineTo(nx, ny); ictx.stroke(); }
+      else if (st.lijn === 1) { ictx.setLineDash([st.dikte * 1.2, st.dikte * 2.2]); ictx.lineDashOffset = -sprayT; ictx.beginPath(); ictx.moveTo(st.x, st.y); ictx.lineTo(nx, ny); ictx.stroke(); sprayT += Math.hypot(nx - st.x, ny - st.y); }
+      else { for (var i = 0; i < 6; i++) { var a = Math.random() * 6.28, r = Math.random() * st.dikte * 2.2; ictx.fillRect(nx + Math.cos(a) * r, ny + Math.sin(a) * r, 1.6, 1.6); } }
+      beoordeel(nx, ny);
+    }
+    st.x = nx; st.y = ny;
+  }
+  var TOL = 16;
+  function beoordeel(x, y) {
+    if (!st.punten || st.klaar) return;
+    var dichtbij = false;
+    for (var i = 0; i < st.punten.length; i++) {
+      var p = st.punten[i], d = Math.hypot(p.x - x, p.y - y);
+      if (d < TOL + st.dikte / 2) { p.ok = true; dichtbij = true; }
+      else if (d < TOL * 1.6) dichtbij = true;
+    }
+    st.totaal++; if (!dichtbij) st.ernaast++;
+  }
+  function percentage() {
+    if (!st.punten) return null;
+    var ok = 0; st.punten.forEach(function (p) { if (p.ok) ok++; });
+    return Math.round(ok / st.punten.length * 100);
+  }
+
+  function teken(nu) {
+    ctx.clearRect(0, 0, W, H);
+    // raster
+    ctx.fillStyle = 'rgba(0,0,0,.12)';
+    for (var gx = 20; gx < W; gx += 40) for (var gy = 20; gy < H; gy += 40) ctx.fillRect(gx - 1, gy - 1, 2, 2);
+    // spookvorm
+    var o = OPDRACHTEN[st.op];
+    if (o.pad) {
+      ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = TOL * 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); o.pad.forEach(function (p, i) { i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 8]); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#ff5a00'; ctx.beginPath(); ctx.arc(o.pad[0].x, o.pad[0].y, 6, 0, 7); ctx.fill();
+    }
+    ctx.drawImage(inkt, 0, 0);
+    // pen
+    var kl = KLEUREN[st.kleur];
+    ctx.save(); ctx.translate(st.x, st.y);
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-8, 0); ctx.moveTo(8, 0); ctx.lineTo(18, 0); ctx.moveTo(0, -18); ctx.lineTo(0, -8); ctx.moveTo(0, 8); ctx.lineTo(0, 18); ctx.stroke();
+    ctx.fillStyle = st.pen ? kl : 'transparent'; ctx.strokeStyle = st.pen ? '#111' : 'rgba(0,0,0,.5)';
+    ctx.setLineDash(st.pen ? [] : [3, 3]);
+    ctx.beginPath(); ctx.arc(0, 0, Math.max(4, st.dikte / 2 + 2), 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- besturing ----------
+  var STAP = 7;
+  var knopHor = 0, knopVer = 0;
+  Kastjes.on(function (e) {
+    var s = e.speler;
+    if (!actief[s]) { actief[s] = true; verdeel(); }
+    var taken = taakVan(s);
+    var heeft = function (t) { return taken.indexOf(t) >= 0; };
+    if (e.type === 'knop') {
+      // knop rechts = je eerste taak. Knop links = je tweede taak, of bij één taak de extra instelling.
+      var t = e.welke === 'rechts' ? taken[0] : (taken[1] || (taken[0] === 'kleur' ? 'dikte' : taken[0] === 'pen' ? 'pen' : taken[0]));
+      if (t === 'hor') { zet(st.x + e.stap * STAP, st.y); hoek.r += e.stap * 15; }
+      else if (t === 'ver') { zet(st.x, st.y - e.stap * STAP); hoek.l += e.stap * 15; }
+      else if (t === 'kleur') st.kleur = (st.kleur + e.stap + KLEUREN.length) % KLEUREN.length;
+      else if (t === 'dikte') st.dikte = Math.max(2, Math.min(30, st.dikte + e.stap * 2));
+      else if (t === 'pen') st.lijn = (st.lijn + e.stap + LIJN.length) % LIJN.length;
+      if (heeft('kleur')) Kastjes.led(s, KLEUREN[st.kleur] === '#111111' ? '#888888' : KLEUREN[st.kleur]);
+    } else if ((e.type === 'joystick-druk' || (e.type === 'knop-druk' && e.welke === 'rechts')) && e.ingedrukt) {
+      if (heeft('pen')) st.pen = !st.pen;
+    } else if (e.type === 'toets') {
+      toets(e);
+    }
+  });
+  var tv = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {}, tb = {};
+  function toets(e) {
+    var p = e.speler; tv[p][e.nr] = e.ingedrukt;
+    if (tv[p][1] && tv[p][2]) combo[p] = true;
+    if (e.ingedrukt) { tb[p + e.nr] = performance.now(); return; }
+    if (combo[p]) { if (!tv[p][1] && !tv[p][2]) combo[p] = false; return; }
+    var lang = performance.now() - (tb[p + e.nr] || 0) > 800;
+    if (e.nr === 1) nieuweOpdracht(st.op + 1);
+    if (e.nr === 2 && lang) nieuweOpdracht(st.op);
+    else if (e.nr === 2) { st.schuif++; verdeel(); }
+  }
+
+  // vloeiend bewegen met de joystick
+  var vorige = performance.now();
+  function lus(nu) {
+    var dt = Math.min(0.05, (nu - vorige) / 1000); vorige = nu;
+    var dx = 0, dy = 0;
+    for (var s = 1; s <= 4; s++) {
+      if (!actief[s]) continue;
+      var j = Kastjes.joystick(s), tk = taakVan(s);
+      if (tk.indexOf('hor') >= 0) dx += j.x;
+      if (tk.indexOf('ver') >= 0) dy += j.y;
+    }
+    if (dx || dy) { zet(st.x + dx * 240 * dt, st.y + dy * 240 * dt); hoek.r += dx * 300 * dt; hoek.l -= dy * 300 * dt; }
+    // knopjes op het kader draaien mee
+    document.getElementById('kl').style.transform = 'rotate(' + hoek.l + 'deg)';
+    document.getElementById('kr').style.transform = 'rotate(' + hoek.r + 'deg)';
+    // score
+    var pc = percentage();
+    document.getElementById('gevolgd').textContent = pc == null ? '—' : pc + '%';
+    document.getElementById('ernaast').textContent = pc == null ? '—' : (st.totaal ? Math.round(st.ernaast / st.totaal * 100) : 0) + '%';
+    var sec = st.gestart && !st.klaar ? Math.floor((nu - st.gestart) / 1000) : (st.eindtijd || 0);
+    if (!st.klaar) st.eindtijd = sec;
+    document.getElementById('tijd').textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    if (pc != null && pc >= 92 && !st.klaar) {
+      st.klaar = true;
+      var naast = st.totaal ? Math.round(st.ernaast / st.totaal * 100) : 0;
+      document.getElementById('klaarTekst').textContent = naast < 10 ? 'Strak! Super samengewerkt' : naast < 25 ? 'Goed samengewerkt' : 'Gelukt, maar wel slordig';
+      document.getElementById('klaar').classList.add('aan');
+    }
+    // waardes op de kaarten
+    kaarten.hor.querySelector('.waarde').textContent = 'x ' + Math.round(st.x);
+    kaarten.ver.querySelector('.waarde').textContent = 'y ' + Math.round(H - st.y);
+    kaarten.kleur.querySelector('.waarde').innerHTML = '<span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;border:1px solid #0003;background:' + KLEUREN[st.kleur] + '"></span> dikte ' + st.dikte;
+    kaarten.pen.querySelector('.waarde').textContent = (st.pen ? '● neer' : '○ op') + ' · ' + LIJN[st.lijn];
+    for (var t in kaarten) kaarten[t].classList.toggle('bezig', (t === 'hor' && dx) || (t === 'ver' && dy) ? true : false);
+    teken(nu);
+    requestAnimationFrame(lus);
+  }
+
+  for (var n = 1; n <= 4; n++) Kastjes.led(n, KLEUR[n]);
+  maat(); nieuweOpdracht(0); verdeel();
+  requestAnimationFrame(lus);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schoolplein</title>
+<link rel="stylesheet" href="../te-glas.css">
+<style>
+/* Schoolplein: plattegrond vult het midden, bovenin budget en meters, onderin vier spelerkaarten. */
+#kaart{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:5}
+.boven{position:fixed;top:14px;left:56px;right:16px;z-index:20;display:grid;grid-template-columns:auto 1fr auto auto;gap:22px;align-items:center;padding:12px 18px}
+.titel .kop{font-size:clamp(20px,1.9vw,28px)}
+.titel .label{margin-bottom:5px}
+.budget{display:grid;gap:6px;min-width:260px}
+.budget .getal{display:flex;align-items:baseline;gap:10px;font:700 22px var(--m);letter-spacing:-.02em}
+.budget .getal small{font:500 12px var(--m);color:var(--muted)}
+.budget .balk{height:9px;border-radius:5px;background:rgba(0,0,0,.09)}
+.budget .balk i{background:var(--ink);transition:width .25s,background .25s}
+.budget.te-veel .balk i{background:#e5372a}
+.budget.te-veel .getal{color:#e5372a}
+.budget .over{font:600 11.5px var(--m);color:var(--ink-2)}
+.meters{display:flex;gap:8px}
+.meter{display:grid;justify-items:center;gap:3px;min-width:70px;padding:7px 8px;border-radius:12px;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.8)}
+.meter b{font:700 19px var(--m)}
+.meter .label{font-size:9.5px}
+.meter i{width:8px;height:8px;border-radius:50%;display:block}
+.knoppen{display:flex;gap:8px}
+.onder{position:fixed;left:56px;right:16px;bottom:14px;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kaart{padding:10px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;min-height:96px;transition:opacity .3s}
+.kaart.slaapt{opacity:.5}
+.kaart .badge{width:30px;height:30px;border-radius:8px;background:var(--k);display:grid;place-items:center;font:700 14px var(--m);box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+.kaart .kopje{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kaart .kopje b{font:700 14px var(--f)}
+.kaart canvas{grid-row:2 / span 2;width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.8)}
+.kaart .wat{font:700 13.5px var(--f);line-height:1.15}
+.kaart .info{font:500 11px var(--m);color:var(--ink-2);display:flex;gap:10px;flex-wrap:wrap}
+.kaart .info b{color:var(--ink)}
+.kaart .tip{grid-column:1 / -1;font:500 9.5px/1.35 var(--m);color:var(--muted);letter-spacing:.01em}
+.kaart .wacht{grid-column:2;font:500 12px var(--f);color:var(--ink-2)}
+@media (max-width:1250px){.meters .meter{min-width:56px}.titel .label{display:none}.boven{gap:14px}}
+</style>
+</head>
+<body>
+<div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
+<canvas id="kaart"></canvas>
+
+<header class="boven glas">
+  <div class="titel"><div class="label">Candea College · Eltensestraat 8 · Duiven</div><h1 class="kop">Schoolplein<span class="oranje">.</span></h1></div>
+  <div class="budget" id="budget">
+    <div class="getal"><span id="besteed">€0</span><small>van <span id="totaal">€150.000</span></small></div>
+    <div class="balk"><i id="balk" style="width:0%"></i></div>
+    <div class="over" id="over">Nog €150.000 te besteden</div>
+  </div>
+  <div class="meters">
+    <div class="meter"><i style="background:#3f9a4a"></i><b id="m-groen">0</b><span class="label">Groen</span></div>
+    <div class="meter"><i style="background:#ff5a00"></i><b id="m-sport">0</b><span class="label">Sport</span></div>
+    <div class="meter"><i style="background:#3b8bff"></i><b id="m-zit">0</b><span class="label">Zitplek</span></div>
+    <div class="meter"><i style="background:#555"></i><b id="m-schaduw">0</b><span class="label">Schaduw</span></div>
+  </div>
+  <div class="knoppen">
+    <button class="knop" id="k-budget" title="Wissel het totaalbudget">Budget</button>
+    <button class="knop" id="k-leeg" title="Haal alles weg">Leeg</button>
+  </div>
+</header>
+
+<section class="onder" id="onder"></section>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+'use strict';
+
+// ---------- gegevens ----------
+// Vorm van het terrein in meters (x = oost, y = zuid), uit OpenStreetMap (© OpenStreetMap-bijdragers, ODbL).
+var GEO = {"terrein": [[63.7, -15.7], [53.2, -26.5], [19.4, -48.1], [8.4, -48.4], [-48.4, -83.0], [-56.2, -73.1], [-61.5, -59.2], [-64.6, -44.0], [-64.0, -37.4], [-40.1, 50.1], [-37.1, 74.0], [-25.1, 84.2], [-17.0, 84.0], [-6.6, 80.9], [20.5, 48.0]], "gebouw": [[8.1, 43.5], [3.6, 45.3], [-1.4, 53.2], [-8.2, 49.0], [-24.1, 53.3], [-37.9, 2.3], [-18.2, -3.0], [-16.9, 1.7], [-10.6, 0.0], [-6.2, -7.0], [-1.9, -9.0], [-0.5, -8.5], [8.0, -21.7], [-5.6, -30.4], [-11.7, -34.5], [-14.8, -29.7], [-25.3, -36.5], [-23.7, -39.1], [-28.8, -42.4], [-30.5, -39.9], [-41.9, -47.2], [-29.4, -66.7], [-19.3, -60.1], [-18.1, -61.9], [5.1, -47.0], [5.6, -47.6], [49.8, -19.1], [42.5, -7.7], [39.0, -9.8], [22.9, 15.4], [25.0, 17.1]], "schuur": [[-17.0, -17.1], [-18.7, -14.6], [-22.9, -17.1], [-21.2, -19.8]], "parkeer": [[38.7, -64.3], [31.5, -53.1], [29.3, -49.9], [22.7, -53.8], [19.4, -48.1], [53.2, -26.5], [57.1, -32.5], [59.5, -30.9], [61.5, -34.1], [69.0, -45.0]], "pad": [[62.8, -28.9], [47.1, -3.6], [16.6, 43.1]], "adres": [[17.1, -28.0]]};
+// Alle onderdelen. Zelfde lijst als schoolplein/assets-voor-chatgpt.md
+var CAT = [{"id": "boom-groot", "naam": "Grote boom (linde)", "cat": "Groen", "b": 9, "d": 9, "prijs": 2200, "vorm": "boom", "grond": false, "groen": 4, "sport": 0, "zit": 0, "schaduw": 5, "uitleg": "Volwassen lindeboom, geeft veel schaduw."}, {"id": "boom-klein", "naam": "Kleine boom (sierkers)", "cat": "Groen", "b": 5, "d": 5, "prijs": 950, "vorm": "boom-roze", "grond": false, "groen": 2, "sport": 0, "zit": 0, "schaduw": 2, "uitleg": "Kleine boom die in het voorjaar roze bloeit."}, {"id": "fruitboom", "naam": "Fruitboom (appel)", "cat": "Groen", "b": 5, "d": 5, "prijs": 750, "vorm": "boom-fruit", "grond": false, "groen": 2, "sport": 0, "zit": 0, "schaduw": 2, "uitleg": "Appelboom: groen, schaduw en fruit voor de kantine."}, {"id": "bosje", "naam": "Bosje struiken", "cat": "Groen", "b": 4, "d": 3, "prijs": 450, "vorm": "bosje", "grond": false, "groen": 2, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Groep lage struiken, goed tegen wind en lawaai."}, {"id": "heg", "naam": "Heg (beuk)", "cat": "Groen", "b": 6, "d": 1.2, "prijs": 500, "vorm": "heg", "grond": false, "groen": 1, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Strak geknipte heg van 6 meter, als afscheiding."}, {"id": "bloemenperk", "naam": "Bloemenperk (wilde bloemen)", "cat": "Groen", "b": 4, "d": 4, "prijs": 400, "vorm": "bloemen", "grond": false, "groen": 2, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Kleurig vak met wilde bloemen voor bijen en vlinders."}, {"id": "grasveld", "naam": "Grasveld", "cat": "Groen", "b": 10, "d": 10, "prijs": 900, "vorm": "gras", "grond": true, "groen": 3, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Stuk gras van 10 bij 10 meter. Kan onder andere dingen liggen."}, {"id": "wadi", "naam": "Regenwatertuin (wadi)", "cat": "Groen", "b": 8, "d": 5, "prijs": 4500, "vorm": "wadi", "grond": false, "groen": 3, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Lage tuin die regenwater opvangt, met riet en stenen."}, {"id": "moestuin", "naam": "Moestuinbakken", "cat": "Groen", "b": 4, "d": 3, "prijs": 1200, "vorm": "moestuin", "grond": false, "groen": 1, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Drie houten bakken om groente te kweken."}, {"id": "insectenhotel", "naam": "Insectenhotel", "cat": "Groen", "b": 1.5, "d": 1, "prijs": 300, "vorm": "insect", "grond": false, "groen": 1, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Klein houten huisje voor bijen en insecten."}, {"id": "bankje", "naam": "Bankje", "cat": "Zitten", "b": 2, "d": 0.7, "prijs": 1100, "vorm": "bank", "grond": false, "groen": 0, "sport": 0, "zit": 3, "schaduw": 0, "uitleg": "Houten bank voor drie personen."}, {"id": "picknicktafel", "naam": "Picknicktafel", "cat": "Zitten", "b": 2, "d": 1.8, "prijs": 1500, "vorm": "picknick", "grond": false, "groen": 0, "sport": 0, "zit": 6, "schaduw": 0, "uitleg": "Tafel met twee banken, voor zes leerlingen."}, {"id": "boomstam", "naam": "Boomstam-zitplek", "cat": "Zitten", "b": 4, "d": 0.8, "prijs": 800, "vorm": "stam", "grond": false, "groen": 0, "sport": 0, "zit": 4, "schaduw": 0, "uitleg": "Grote liggende boomstam om op te zitten."}, {"id": "zitcirkel", "naam": "Zitkuil (rond)", "cat": "Zitten", "b": 6, "d": 6, "prijs": 9000, "vorm": "zitcirkel", "grond": false, "groen": 0, "sport": 0, "zit": 16, "schaduw": 0, "uitleg": "Ronde betonnen zitrand, plek voor een hele klas."}, {"id": "zittrap", "naam": "Zittrap (tribune)", "cat": "Zitten", "b": 8, "d": 3, "prijs": 14000, "vorm": "zittrap", "grond": false, "groen": 0, "sport": 0, "zit": 24, "schaduw": 0, "uitleg": "Brede trap om op te zitten, ook voor uitvoeringen."}, {"id": "overkapping", "naam": "Schaduwdoek", "cat": "Zitten", "b": 6, "d": 6, "prijs": 8500, "vorm": "doek", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 4, "uitleg": "Gespannen doek op palen, schaduw en droog bij regen."}, {"id": "chillpaviljoen", "naam": "Chillplek met dak", "cat": "Zitten", "b": 5, "d": 4, "prijs": 16000, "vorm": "paviljoen", "grond": false, "groen": 0, "sport": 0, "zit": 8, "schaduw": 3, "uitleg": "Overdekte hangplek met banken eromheen."}, {"id": "hangmatten", "naam": "Hangmatten", "cat": "Zitten", "b": 4, "d": 3, "prijs": 1800, "vorm": "hangmat", "grond": false, "groen": 0, "sport": 0, "zit": 3, "schaduw": 0, "uitleg": "Drie hangmatten tussen palen."}, {"id": "voetbalveld", "naam": "Kunstgras voetbalveld", "cat": "Sport", "b": 24, "d": 14, "prijs": 65000, "vorm": "voetbal", "grond": false, "groen": 0, "sport": 10, "zit": 0, "schaduw": 0, "uitleg": "Klein veld van kunstgras met hekwerk en twee doelen."}, {"id": "pannakooi", "naam": "Pannakooi", "cat": "Sport", "b": 12, "d": 7, "prijs": 27000, "vorm": "panna", "grond": false, "groen": 0, "sport": 6, "zit": 0, "schaduw": 0, "uitleg": "Kooi met hoge randen voor straatvoetbal."}, {"id": "basketbalveld", "naam": "Basketbalveld (half)", "cat": "Sport", "b": 14, "d": 12, "prijs": 18000, "vorm": "basket", "grond": false, "groen": 0, "sport": 6, "zit": 0, "schaduw": 0, "uitleg": "Half basketbalveld met één paal en lijnen."}, {"id": "basketpaal", "naam": "Basketbalpaal", "cat": "Sport", "b": 2, "d": 1, "prijs": 2500, "vorm": "paal", "grond": false, "groen": 0, "sport": 2, "zit": 0, "schaduw": 0, "uitleg": "Losse paal met bord en ring."}, {"id": "tafeltennis", "naam": "Tafeltennistafel", "cat": "Sport", "b": 3, "d": 1.7, "prijs": 2900, "vorm": "pingpong", "grond": false, "groen": 0, "sport": 2, "zit": 0, "schaduw": 0, "uitleg": "Betonnen tafeltennistafel die tegen weer kan."}, {"id": "calisthenics", "naam": "Calisthenics-rek", "cat": "Sport", "b": 7, "d": 4, "prijs": 13000, "vorm": "calisthenics", "grond": false, "groen": 0, "sport": 4, "zit": 0, "schaduw": 0, "uitleg": "Rekken en stangen om buiten te trainen."}, {"id": "skatebaan", "naam": "Skate-element", "cat": "Sport", "b": 6, "d": 3, "prijs": 9500, "vorm": "skate", "grond": false, "groen": 0, "sport": 3, "zit": 0, "schaduw": 0, "uitleg": "Betonnen ramp om op te skaten en steppen."}, {"id": "boulderblok", "naam": "Boulderblok", "cat": "Sport", "b": 4, "d": 4, "prijs": 11000, "vorm": "boulder", "grond": false, "groen": 0, "sport": 3, "zit": 0, "schaduw": 0, "uitleg": "Klimrots met gekleurde grepen."}, {"id": "volleybal", "naam": "Beachvolleybalveld", "cat": "Sport", "b": 16, "d": 8, "prijs": 14000, "vorm": "volley", "grond": false, "groen": 0, "sport": 5, "zit": 0, "schaduw": 0, "uitleg": "Zandveld met net."}, {"id": "minigoals", "naam": "Mini-doeltjes", "cat": "Sport", "b": 3, "d": 1, "prijs": 1200, "vorm": "goals", "grond": false, "groen": 0, "sport": 1, "zit": 0, "schaduw": 0, "uitleg": "Twee kleine doeltjes om mee te voetballen."}, {"id": "schaakbord", "naam": "Groot schaakbord", "cat": "Sport", "b": 4, "d": 4, "prijs": 2600, "vorm": "schaak", "grond": false, "groen": 0, "sport": 1, "zit": 0, "schaduw": 0, "uitleg": "Schaakbord op de grond met grote stukken."}, {"id": "fietsenrek", "naam": "Fietsenrek", "cat": "Voorzieningen", "b": 6, "d": 2, "prijs": 2200, "vorm": "fietsenrek", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Rek voor tien fietsen."}, {"id": "fietsenstalling", "naam": "Overdekte fietsenstalling", "cat": "Voorzieningen", "b": 12, "d": 5, "prijs": 22000, "vorm": "stalling", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 1, "uitleg": "Fietsenstalling met dak, voor zestig fietsen."}, {"id": "afvalbakken", "naam": "Afvalbakken (3 soorten)", "cat": "Voorzieningen", "b": 2, "d": 0.6, "prijs": 1500, "vorm": "afval", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Drie bakken: plastic, papier en rest."}, {"id": "watertappunt", "naam": "Watertappunt", "cat": "Voorzieningen", "b": 1, "d": 1, "prijs": 3200, "vorm": "water", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Kraan om je bidon te vullen."}, {"id": "lantaarnpaal", "naam": "Lantaarnpaal", "cat": "Voorzieningen", "b": 1, "d": 1, "prijs": 1900, "vorm": "lamp", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Ledlamp, zodat het plein ook in de winter veilig is."}, {"id": "buitenlokaal", "naam": "Buitenlokaal", "cat": "Voorzieningen", "b": 8, "d": 8, "prijs": 15000, "vorm": "buitenlokaal", "grond": false, "groen": 0, "sport": 0, "zit": 20, "schaduw": 0, "uitleg": "Kring van banken met een schoolbord: les buiten."}, {"id": "podium", "naam": "Podium", "cat": "Voorzieningen", "b": 6, "d": 4, "prijs": 7500, "vorm": "podium", "grond": false, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Klein podium voor optredens en de kerstviering."}, {"id": "tegels", "naam": "Tegelvloer", "cat": "Ondergrond", "b": 10, "d": 10, "prijs": 4500, "vorm": "tegels", "grond": true, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Stevige tegels, 10 bij 10 meter."}, {"id": "pad", "naam": "Looppad", "cat": "Ondergrond", "b": 10, "d": 2, "prijs": 1000, "vorm": "pad", "grond": true, "groen": 0, "sport": 0, "zit": 0, "schaduw": 0, "uitleg": "Pad van rode klinkers."}, {"id": "valtegels", "naam": "Valtegels (rubber)", "cat": "Ondergrond", "b": 6, "d": 6, "prijs": 3600, "vorm": "rubber", "grond": true, "groen": 0, "sport": 1, "zit": 0, "schaduw": 0, "uitleg": "Zachte ondergrond voor onder sport en spel."}];
+var BUDGETTEN = [75000, 100000, 150000, 200000, 250000];
+var KLEUR = { 1: '#ff7a1a', 2: '#3b8bff', 3: '#21c06b', 4: '#b768ff' };
+var CATS = []; CAT.forEach(function (a, i) { a.i = i; if (CATS.indexOf(a.cat) < 0) CATS.push(a.cat); });
+var PER_ID = {}; CAT.forEach(function (a) { PER_ID[a.id] = a; });
+
+// Plaatjes uit ChatGPT: schoolplein/<id>.png. Ontbreekt er een, dan tekent de app zelf een tijdelijk plaatje.
+var IMG = {};
+CAT.forEach(function (a) {
+  var im = new Image();
+  im.onload = function () { IMG[a.id] = im; tekenKaartjes(); };
+  im.src = 'schoolplein/' + a.id + '.png';
+});
+
+function eur(n) { return (n < 0 ? '-€' : '€') + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function mtr(x) { return String(x).replace('.', ','); }
+
+// ---------- opslag (alleen gemak; werkt ook zonder) ----------
+var SLEUTEL = 'kastjes-schoolplein-v1';
+var staat = { budget: 150000, items: [] };
+try { var o = JSON.parse(localStorage.getItem(SLEUTEL)); if (o && o.items) staat = o; } catch (e) {}
+staat.items = staat.items.filter(function (it) { return PER_ID[it.id]; });
+var volgNr = staat.items.reduce(function (m, it) { return Math.max(m, it.n || 0); }, 0) + 1;
+function bewaar() { try { localStorage.setItem(SLEUTEL, JSON.stringify(staat)); } catch (e) {} }
+
+// ---------- meetkunde ----------
+function binnen(p, poly) {
+  var x = p[0], y = p[1], c = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function opGrond(p) { return binnen(p, GEO.terrein) && !binnen(p, GEO.gebouw) && !binnen(p, GEO.schuur) && !binnen(p, GEO.parkeer); }
+function isBoom(a) { return a.vorm.indexOf('boom') === 0; }
+function botsFactor(a) { return isBoom(a) ? 0.5 : 0.94; }
+function punten(it, k) {
+  var a = PER_ID[it.id], c = Math.cos(it.rot), s = Math.sin(it.rot), out = [];
+  for (var i = 0; i <= 4; i++) for (var j = 0; j <= 4; j++) {
+    var lx = (i / 4 - 0.5) * a.b * k, ly = (j / 4 - 0.5) * a.d * k;
+    out.push([it.x + lx * c - ly * s, it.y + lx * s + ly * c]);
+  }
+  return out;
+}
+function bevat(it, p, k) {
+  var a = PER_ID[it.id], dx = p[0] - it.x, dy = p[1] - it.y, c = Math.cos(-it.rot), s = Math.sin(-it.rot);
+  var lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) <= a.b * k / 2 + 0.01 && Math.abs(ly) <= a.d * k / 2 + 0.01;
+}
+// Past dit onderdeel hier? Geeft null of de reden.
+function waarom(it, negeer) {
+  var a = PER_ID[it.id], k = botsFactor(a), pts = punten(it, k);
+  for (var i = 0; i < pts.length; i++) if (!opGrond(pts[i])) return 'Past niet: buiten het plein';
+  if (a.grond) return null;
+  for (var n = 0; n < staat.items.length; n++) {
+    var o = staat.items[n];
+    if (o === negeer || o === it) continue;
+    var b = PER_ID[o.id];
+    if (b.grond) continue;
+    var ko = botsFactor(b);
+    for (i = 0; i < pts.length; i++) if (bevat(o, pts[i], ko)) return 'Botst met ' + b.naam.toLowerCase();
+    var op = punten(o, ko);
+    for (i = 0; i < op.length; i++) if (bevat(it, op[i], k)) return 'Botst met ' + b.naam.toLowerCase();
+  }
+  return null;
+}
+function besteed() { return staat.items.reduce(function (t, it) { return t + PER_ID[it.id].prijs; }, 0); }
+function onderCursor(p) {
+  var beste = null;
+  for (var i = staat.items.length - 1; i >= 0; i--) {
+    var it = staat.items[i], a = PER_ID[it.id];
+    if (!bevat(it, p, 1)) continue;
+    if (!a.grond) return it;
+    if (!beste) beste = it;
+  }
+  return beste;
+}
+
+// ---------- beeld: draaiing en schaal zo kiezen dat het plein het scherm zo goed mogelijk vult ----------
+var cv = document.getElementById('kaart'), ctx = cv.getContext('2d');
+var dpr = 1, W = 0, H = 0, view = { th: 0, s: 1, ox: 0, oy: 0, cx: 0, cy: 0 };
+function maat() {
+  dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  var top = document.querySelector('.boven').getBoundingClientRect().bottom + 18;
+  var bodem = document.querySelector('.onder').getBoundingClientRect().top - 18;
+  var links = 70, rechts = W - 30, best = null;
+  for (var g = 0; g < 180; g += 5) {
+    var th = g * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    GEO.terrein.forEach(function (p) {
+      var x = p[0] * c - p[1] * s, y = p[0] * s + p[1] * c;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    });
+    var sc = Math.min((rechts - links) / (x1 - x0 + 8), (bodem - top) / (y1 - y0 + 8));
+    if (!best || sc > best.s * 1.01) best = { th: th, s: sc, mx: (x0 + x1) / 2, my: (y0 + y1) / 2 };
+  }
+  view.th = best.th; view.s = best.s;
+  view.ox = (links + rechts) / 2 - best.mx * best.s; view.oy = (top + bodem) / 2 - best.my * best.s;
+}
+function naarScherm(p) {
+  var c = Math.cos(view.th), s = Math.sin(view.th);
+  return [view.ox + (p[0] * c - p[1] * s) * view.s, view.oy + (p[0] * s + p[1] * c) * view.s];
+}
+function wereldTransform() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.translate(view.ox, view.oy); ctx.scale(view.s, view.s); ctx.rotate(view.th);
+}
+
+// ---------- tijdelijke tekeningen (tot de ChatGPT-plaatjes er zijn) ----------
+function rnd(seed) { var h = 2166136261; for (var i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; }; }
+function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function cirkel(c, x, y, r, kl) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = kl; c.fill(); }
+function ell(c, x, y, rx, ry, kl) { c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.fillStyle = kl; c.fill(); }
+function lijn(c, pts, kl, lw) { c.beginPath(); c.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.strokeStyle = kl; c.lineWidth = lw; c.stroke(); }
+function rect(c, x, y, w, h, kl) { c.fillStyle = kl; c.fillRect(x, y, w, h); }
+
+function kruin(c, w, h, r, basis, licht, extra) {
+  var R = Math.min(w, h) / 2;
+  cirkel(c, R * .12, R * .16, R * .98, 'rgba(0,0,0,.18)');
+  cirkel(c, 0, 0, R, basis);
+  for (var i = 0; i < 7; i++) { var a = i / 7 * 6.283 + r() * .5, d = R * (.42 + r() * .2); cirkel(c, Math.cos(a) * d, Math.sin(a) * d, R * (.34 + r() * .12), i % 2 ? basis : licht); }
+  cirkel(c, -R * .22, -R * .26, R * .42, licht);
+  cirkel(c, -R * .3, -R * .34, R * .2, 'rgba(255,255,255,.18)');
+  if (extra) for (i = 0; i < 16; i++) { var a2 = r() * 6.283, d2 = r() * R * .82; cirkel(c, Math.cos(a2) * d2, Math.sin(a2) * d2, R * (extra[1] || .06), extra[0]); }
+}
+function schaduw(c, w, h, r) { c.save(); c.fillStyle = 'rgba(0,0,0,.16)'; rr(c, -w / 2 + w * .05 + .15, -h / 2 + h * .06 + .2, w, h, r); c.fill(); c.restore(); }
+
+var VORM = {
+  'boom': function (c, w, h, r) { kruin(c, w, h, r, '#4e8b3a', '#6fae4c'); },
+  'boom-roze': function (c, w, h, r) { kruin(c, w, h, r, '#5c9545', '#7db85a', ['#f4a7c3', .07]); },
+  'boom-fruit': function (c, w, h, r) { kruin(c, w, h, r, '#4f8d3d', '#73b051', ['#d8322a', .06]); },
+  'bosje': function (c, w, h, r) {
+    ell(c, w * .05, h * .08, w * .48, h * .46, 'rgba(0,0,0,.16)');
+    var k = ['#3f7a33', '#5a9a42', '#4d8a3a', '#6aa84f', '#3c7130', '#79b65a'];
+    for (var i = 0; i < 6; i++) cirkel(c, (r() - .5) * w * .55, (r() - .5) * h * .5, Math.min(w, h) * (.24 + r() * .1), k[i]);
+  },
+  'heg': function (c, w, h, r) {
+    schaduw(c, w, h, h / 2); rr(c, -w / 2, -h / 2, w, h, h / 2); c.fillStyle = '#3e7834'; c.fill();
+    for (var x = -w / 2 + h * .4; x < w / 2 - h * .3; x += h * .45) cirkel(c, x, (r() - .5) * h * .2, h * .32, r() > .5 ? '#4f8c3e' : '#5d9a48');
+  },
+  'bloemen': function (c, w, h, r) {
+    rr(c, -w / 2, -h / 2, w, h, .6); c.fillStyle = '#7aa957'; c.fill();
+    var k = ['#9b6ad6', '#f2c84b', '#ffffff', '#e5533c', '#f08bc0'];
+    for (var i = 0; i < 70; i++) cirkel(c, (r() - .5) * w * .9, (r() - .5) * h * .9, .13, k[i % 5]);
+  },
+  'gras': function (c, w, h) {
+    rr(c, -w / 2, -h / 2, w, h, .5); c.fillStyle = '#86bb5c'; c.fill();
+    c.save(); c.clip(); for (var x = -w / 2; x < w / 2; x += 2) rect(c, x, -h / 2, 1, h, 'rgba(255,255,255,.07)'); c.restore();
+  },
+  'wadi': function (c, w, h, r) {
+    ell(c, 0, 0, w / 2, h / 2, '#93ad6c'); ell(c, 0, 0, w * .38, h * .36, '#7a9c5a'); ell(c, 0, h * .03, w * .2, h * .15, '#74b3cf');
+    for (var i = 0; i < 9; i++) cirkel(c, (r() - .5) * w * .7, (r() - .5) * h * .6, .22, '#c9c4b8');
+    for (i = 0; i < 18; i++) { var x = (r() - .5) * w * .8, y = (r() - .5) * h * .7; lijn(c, [x, y, x + .2, y - .5], '#4f7a34', .08); }
+  },
+  'moestuin': function (c, w, h, r) {
+    schaduw(c, w, h, .1);
+    for (var i = 0; i < 3; i++) {
+      var bw = w / 3 - .2, x = -w / 2 + i * w / 3 + .1;
+      rect(c, x, -h / 2, bw, h, '#b98a52'); rect(c, x + .12, -h / 2 + .12, bw - .24, h - .24, '#5b4330');
+      for (var y = -h / 2 + .45; y < h / 2 - .2; y += .5) for (var xx = x + .3; xx < x + bw - .15; xx += .4) cirkel(c, xx, y, .16, i === 1 ? '#8fc35f' : '#5f9e45');
+    }
+  },
+  'insect': function (c, w, h) { schaduw(c, w, h, .05); rect(c, -w / 2, -h / 2, w, h, '#a8743f'); rect(c, -w / 2, -.04, w, .08, '#6b4625'); rect(c, -w / 2, -h / 2, w, h / 2, 'rgba(255,255,255,.12)'); },
+  'bank': function (c, w, h) {
+    schaduw(c, w, h, .05); rect(c, -w / 2 + .1, -h / 2, .12, h, '#3a3a3a'); rect(c, w / 2 - .22, -h / 2, .12, h, '#3a3a3a');
+    for (var i = 0; i < 5; i++) rect(c, -w / 2, -h / 2 + i * h / 5 + .02, w, h / 5 - .05, i === 0 ? '#b57f45' : '#cf9a5c');
+  },
+  'picknick': function (c, w, h) {
+    schaduw(c, w, h, .05);
+    rect(c, -w / 2, -h / 2, w, h * .2, '#c08a4f'); rect(c, -w / 2, h / 2 - h * .2, w, h * .2, '#c08a4f');
+    rect(c, -w / 2, -h * .22, w, h * .44, '#d6a466'); for (var x = -w / 2 + w / 5; x < w / 2; x += w / 5) rect(c, x, -h * .22, .03, h * .44, '#a87640');
+  },
+  'stam': function (c, w, h) {
+    schaduw(c, w, h, h / 2); rr(c, -w / 2, -h / 2, w, h, h / 2); c.fillStyle = '#7b5a3c'; c.fill();
+    for (var x = -w / 2 + .3; x < w / 2 - .4; x += .35) lijn(c, [x, -h * .4, x + .2, h * .4], 'rgba(0,0,0,.18)', .05);
+    ell(c, w / 2 - h * .4, 0, h * .38, h * .45, '#e2c08f'); ell(c, w / 2 - h * .4, 0, h * .2, h * .24, '#c99d63');
+  },
+  'zitcirkel': function (c, w) {
+    var R = w / 2; cirkel(c, R * .06, R * .08, R, 'rgba(0,0,0,.14)');
+    cirkel(c, 0, 0, R, '#d8d4cb'); cirkel(c, 0, 0, R * .86, '#c9925a'); cirkel(c, 0, 0, R * .74, '#cbc6bc'); cirkel(c, 0, 0, R * .6, '#c9925a'); cirkel(c, 0, 0, R * .5, '#bdb7ac');
+    for (var i = 0; i < 12; i++) { var a = i / 12 * 6.283; lijn(c, [Math.cos(a) * R * .5, Math.sin(a) * R * .5, Math.cos(a) * R, Math.sin(a) * R], 'rgba(0,0,0,.06)', .05); }
+  },
+  'zittrap': function (c, w, h) {
+    schaduw(c, w, h, .1); var k = ['#bdb8ae', '#cfcac0', '#e0dcd3'];
+    for (var i = 0; i < 3; i++) { rect(c, -w / 2, h / 2 - (i + 1) * h / 3, w, h / 3, k[i]); rect(c, -w / 2, h / 2 - (i + 1) * h / 3 + .15, w, .35, '#c9925a'); }
+  },
+  'doek': function (c, w, h) {
+    c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.moveTo(-w / 2 + .6, -h / 2 + .8); c.lineTo(w / 2 + .5, -h / 2 + 1.2); c.lineTo(w / 2 + .3, h / 2 + .7); c.lineTo(-w / 2 + .9, h / 2 + .4); c.fill();
+    var g = c.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, '#fbf8f0'); g.addColorStop(1, '#e3ddd0');
+    c.fillStyle = g; c.beginPath(); c.moveTo(-w / 2, -h / 2); c.quadraticCurveTo(0, -h * .38, w / 2, -h / 2 + .4); c.quadraticCurveTo(w * .38, 0, w / 2 - .2, h / 2); c.quadraticCurveTo(0, h * .4, -w / 2 + .3, h / 2 - .2); c.quadraticCurveTo(-w * .4, 0, -w / 2, -h / 2); c.fill();
+    [[-w / 2, -h / 2], [w / 2, -h / 2 + .4], [w / 2 - .2, h / 2], [-w / 2 + .3, h / 2 - .2]].forEach(function (p) { cirkel(c, p[0], p[1], .18, '#333'); });
+  },
+  'paviljoen': function (c, w, h) {
+    schaduw(c, w, h, .2); rect(c, -w / 2 - .3, -h / 2 + .5, .5, h - 1, '#c08a4f'); rect(c, w / 2 - .2, -h / 2 + .5, .5, h - 1, '#c08a4f');
+    rr(c, -w / 2, -h / 2, w, h, .2); c.fillStyle = '#6b9a4a'; c.fill(); rect(c, -w / 2 + .3, -h / 2 + .3, w - .6, h - .6, '#cfa06a');
+    for (var x = -w / 2 + .6; x < w / 2 - .3; x += .45) rect(c, x, -h / 2 + .3, .06, h - .6, '#a77843');
+  },
+  'hangmat': function (c, w, h) {
+    var k = ['#ff5a00', '#2a9d8f', '#8d8d86'];
+    for (var i = 0; i < 3; i++) { var y = -h / 2 + (i + .5) * h / 3; cirkel(c, -w / 2 + .2, y, .14, '#7b5a3c'); cirkel(c, w / 2 - .2, y, .14, '#7b5a3c'); ell(c, .1, y + .1, w * .38, h * .12, 'rgba(0,0,0,.15)'); ell(c, 0, y, w * .38, h * .11, k[i]); }
+  },
+  'voetbal': function (c, w, h) {
+    schaduw(c, w, h, .4); rr(c, -w / 2, -h / 2, w, h, .4); c.fillStyle = '#3d8a46'; c.fill();
+    c.save(); c.clip(); for (var x = -w / 2; x < w / 2; x += 3) rect(c, x, -h / 2, 1.5, h, '#459850'); c.restore();
+    c.strokeStyle = '#fff'; c.lineWidth = .12; c.strokeRect(-w / 2 + .8, -h / 2 + .8, w - 1.6, h - 1.6);
+    lijn(c, [0, -h / 2 + .8, 0, h / 2 - .8], '#fff', .12); c.beginPath(); c.arc(0, 0, h * .16, 0, 7); c.stroke();
+    c.strokeRect(-w / 2 + .8, -h * .22, w * .12, h * .44); c.strokeRect(w / 2 - .8 - w * .12, -h * .22, w * .12, h * .44);
+    rect(c, -w / 2 + .2, -1.5, .6, 3, '#f4f4f0'); rect(c, w / 2 - .8, -1.5, .6, 3, '#f4f4f0');
+    rr(c, -w / 2, -h / 2, w, h, .4); c.strokeStyle = '#2b2b2b'; c.lineWidth = .18; c.stroke();
+  },
+  'panna': function (c, w, h) {
+    schaduw(c, w, h, 1.2); rr(c, -w / 2, -h / 2, w, h, 1.2); c.fillStyle = '#2d2d2d'; c.fill();
+    rr(c, -w / 2 + .35, -h / 2 + .35, w - .7, h - .7, 1); c.fillStyle = '#3f8f4a'; c.fill();
+    lijn(c, [0, -h / 2 + .4, 0, h / 2 - .4], '#fff', .1); c.beginPath(); c.arc(0, 0, h * .15, 0, 7); c.strokeStyle = '#fff'; c.stroke();
+    rect(c, -w / 2 + .35, -.9, .4, 1.8, '#f4f4f0'); rect(c, w / 2 - .75, -.9, .4, 1.8, '#f4f4f0');
+  },
+  'basket': function (c, w, h) {
+    schaduw(c, w, h, .3); rr(c, -w / 2, -h / 2, w, h, .3); c.fillStyle = '#c4573f'; c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = .1; c.strokeRect(-w / 2 + .5, -h / 2 + .5, w - 1, h - 1);
+    c.beginPath(); c.arc(-w / 2 + 1.6, 0, h * .42, -1.5, 1.5); c.stroke(); c.strokeRect(-w / 2 + .5, -h * .16, w * .36, h * .32);
+    rect(c, -w / 2 + .9, -.9, .12, 1.8, '#fff'); c.beginPath(); c.arc(-w / 2 + 1.35, 0, .3, 0, 7); c.strokeStyle = '#ff5a00'; c.lineWidth = .1; c.stroke();
+  },
+  'paal': function (c, w, h) { schaduw(c, w, h, .05); rect(c, -w / 2, -h / 2, .15, h, '#f3f3ef'); cirkel(c, -w / 2 + .5, 0, .28, '#ff5a00'); cirkel(c, -w / 2 + .5, 0, .2, '#f3f3ef'); cirkel(c, w / 2 - .2, 0, .15, '#444'); },
+  'pingpong': function (c, w, h) {
+    schaduw(c, w, h, .1); rr(c, -w / 2, -h / 2, w, h, .1); c.fillStyle = '#2b7a82'; c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = .05; c.strokeRect(-w / 2 + .05, -h / 2 + .05, w - .1, h - .1); lijn(c, [-w / 2, 0, w / 2, 0], '#fff', .03); rect(c, -.04, -h / 2 - .1, .08, h + .2, '#333');
+  },
+  'calisthenics': function (c, w, h) {
+    rr(c, -w / 2, -h / 2, w, h, .3); c.fillStyle = '#b35a43'; c.fill();
+    lijn(c, [-w * .4, -h * .3, w * .1, -h * .3], '#2a2a2a', .12); lijn(c, [-w * .3, h * .1, -w * .3, h * .35], '#2a2a2a', .1); lijn(c, [-w * .15, h * .1, -w * .15, h * .35], '#2a2a2a', .1);
+    lijn(c, [w * .2, -h * .35, w * .2, h * .35], '#2a2a2a', .1); lijn(c, [w * .35, -h * .35, w * .35, h * .35], '#2a2a2a', .1);
+    [[-w * .4, -h * .3], [w * .1, -h * .3], [w * .2, -h * .35], [w * .35, h * .35]].forEach(function (p) { cirkel(c, p[0], p[1], .14, '#111'); });
+  },
+  'skate': function (c, w, h) {
+    schaduw(c, w, h, .2); var g = c.createLinearGradient(-w / 2, 0, w / 2, 0); g.addColorStop(0, '#9d9a93'); g.addColorStop(.5, '#d3d0c8'); g.addColorStop(1, '#bdb9b0');
+    rr(c, -w / 2, -h / 2, w, h, .2); c.fillStyle = g; c.fill(); lijn(c, [-w / 2 + .1, -h / 2, -w / 2 + .1, h / 2], '#666', .12); lijn(c, [w * .1, -h * .25, w * .42, -h * .25], '#444', .08);
+  },
+  'boulder': function (c, w, h, r) {
+    rr(c, -w / 2, -h / 2, w, h, .5); c.fillStyle = '#b35a43'; c.fill();
+    c.beginPath(); c.moveTo(-w * .3, -h * .32); c.lineTo(w * .25, -h * .38); c.lineTo(w * .36, h * .1); c.lineTo(w * .05, h * .36); c.lineTo(-w * .36, h * .2); c.closePath(); c.fillStyle = '#8f8b84'; c.fill();
+    c.beginPath(); c.moveTo(-w * .3, -h * .32); c.lineTo(w * .25, -h * .38); c.lineTo(w * .02, -h * .02); c.closePath(); c.fillStyle = '#b4b0a8'; c.fill();
+    var k = ['#ff5a00', '#3b8bff', '#21c06b', '#f2c84b', '#b768ff']; for (var i = 0; i < 14; i++) cirkel(c, (r() - .5) * w * .55, (r() - .5) * h * .55, .1, k[i % 5]);
+  },
+  'volley': function (c, w, h) {
+    rr(c, -w / 2, -h / 2, w, h, .3); c.fillStyle = '#e7d4a4'; c.fill(); c.strokeStyle = '#2f6fd6'; c.lineWidth = .1; c.strokeRect(-w / 2 + .5, -h / 2 + .5, w - 1, h - 1);
+    lijn(c, [0, -h / 2 - .2, 0, h / 2 + .2], '#222', .08); cirkel(c, 0, -h / 2 - .2, .12, '#222'); cirkel(c, 0, h / 2 + .2, .12, '#222');
+  },
+  'goals': function (c, w, h) {
+    [-1, 1].forEach(function (z) { var x = z * w * .28; c.strokeStyle = '#f4f4f0'; c.lineWidth = .1; c.beginPath(); c.moveTo(x - .6, -h * .3); c.lineTo(x - .6, h * .3); c.lineTo(x + .6, h * .3); c.lineTo(x + .6, -h * .3); c.stroke(); rect(c, x - .55, -h * .25, 1.1, h * .5, 'rgba(255,255,255,.25)'); });
+  },
+  'schaak': function (c, w, h) {
+    var n = 8, s = w / n; for (var i = 0; i < n; i++) for (var j = 0; j < n; j++) rect(c, -w / 2 + i * s, -h / 2 + j * s, s, s, (i + j) % 2 ? '#2d2d2d' : '#efeee8');
+    for (i = 0; i < 8; i++) { cirkel(c, -w / 2 + (i + .5) * s, -h / 2 + s * .5, s * .3, '#111'); cirkel(c, -w / 2 + (i + .5) * s, h / 2 - s * .5, s * .3, '#fafaf5'); }
+  },
+  'fietsenrek': function (c, w, h, r) {
+    rect(c, -w / 2, -.05, w, .1, '#555'); var k = ['#ff5a00', '#3b8bff', '#222', '#21c06b', '#b9b9b2', '#c0392b'];
+    for (var i = 0; i < 10; i++) { var x = -w / 2 + (i + .5) * w / 10; lijn(c, [x, -h / 2 + .1, x, h / 2 - .1], k[Math.floor(r() * 6)], .1); lijn(c, [x - .22, -h * .12, x + .22, -h * .12], '#333', .05); }
+  },
+  'stalling': function (c, w, h, r) {
+    schaduw(c, w, h, .2); rr(c, -w / 2, -h / 2, w, h, .2); c.fillStyle = '#7d9a55'; c.fill();
+    for (var i = 0; i < 90; i++) cirkel(c, (r() - .5) * w * .92, (r() - .5) * h * .85, .18, r() > .5 ? '#a3a04d' : '#5f8641');
+    rect(c, -w / 2, h / 2 - .2, w, .2, '#4a4a4a');
+  },
+  'afval': function (c, w, h) { ['#ff5a00', '#3b8bff', '#8a8a84'].forEach(function (k, i) { var x = -w / 2 + (i + .5) * w / 3; cirkel(c, x + .06, .08, h * .45, 'rgba(0,0,0,.16)'); cirkel(c, x, 0, h * .45, k); cirkel(c, x - .06, -.06, h * .18, 'rgba(255,255,255,.3)'); }); },
+  'water': function (c, w) { cirkel(c, .06, .08, w * .32, 'rgba(0,0,0,.16)'); cirkel(c, 0, 0, w * .32, '#a9aeb2'); cirkel(c, 0, 0, w * .18, '#3b8bff'); },
+  'lamp': function (c, w) { var g = c.createRadialGradient(0, 0, 0, 0, 0, w * .5); g.addColorStop(0, 'rgba(255,214,120,.9)'); g.addColorStop(1, 'rgba(255,214,120,0)'); c.fillStyle = g; c.fillRect(-w / 2, -w / 2, w, w); cirkel(c, 0, 0, w * .14, '#2b2b2b'); },
+  'buitenlokaal': function (c, w, h) {
+    cirkel(c, 0, 0, w / 2, '#ddd3c0'); c.strokeStyle = '#c08a4f'; c.lineWidth = .55;
+    for (var i = 0; i < 3; i++) { c.beginPath(); c.arc(0, -h * .1, w * (.22 + i * .09), .35, Math.PI - .35); c.stroke(); }
+    rect(c, -w * .2, -h * .42, w * .4, .3, '#2e3b33'); rect(c, -w * .2, -h * .42, w * .4, .08, '#7b5a3c');
+  },
+  'podium': function (c, w, h) {
+    schaduw(c, w, h, .1); rect(c, -w / 2, -h / 2, w, h, '#c9935a'); for (var y = -h / 2 + .3; y < h / 2; y += .3) rect(c, -w / 2, y, w, .03, '#a87640');
+    rect(c, -w / 2 + .2, -h / 2 + .2, .6, .6, '#1d1d1d'); rect(c, w / 2 - .8, -h / 2 + .2, .6, .6, '#1d1d1d');
+  },
+  'tegels': function (c, w, h, r) {
+    rect(c, -w / 2, -h / 2, w, h, '#cfcbc2'); for (var x = -w / 2; x < w / 2; x += .6) for (var y = -h / 2; y < h / 2; y += .6) if (r() < .12) rect(c, x, y, .6, .6, '#bdb8ae');
+    c.strokeStyle = 'rgba(0,0,0,.08)'; c.lineWidth = .03; for (x = -w / 2; x <= w / 2; x += .6) lijn(c, [x, -h / 2, x, h / 2], 'rgba(0,0,0,.08)', .03); for (y = -h / 2; y <= h / 2; y += .6) lijn(c, [-w / 2, y, w / 2, y], 'rgba(0,0,0,.08)', .03);
+  },
+  'pad': function (c, w, h) {
+    rect(c, -w / 2, -h / 2, w, h, '#b3603f'); for (var x = -w / 2; x < w / 2; x += .4) { lijn(c, [x, -h / 2, x + .4, 0], 'rgba(0,0,0,.14)', .04); lijn(c, [x + .4, 0, x, h / 2], 'rgba(0,0,0,.14)', .04); }
+    lijn(c, [-w / 2, -h / 2 + .05, w / 2, -h / 2 + .05], '#8f8b84', .1); lijn(c, [-w / 2, h / 2 - .05, w / 2, h / 2 - .05], '#8f8b84', .1);
+  },
+  'rubber': function (c, w, h, r) { rect(c, -w / 2, -h / 2, w, h, '#b4573f'); for (var i = 0; i < 160; i++) cirkel(c, (r() - .5) * w, (r() - .5) * h, .04, r() > .5 ? '#c96d55' : '#97462f'); }
+};
+function tekenAsset(c, a, w, h) {
+  var im = IMG[a.id];
+  if (im) { c.drawImage(im, -w / 2, -h / 2, w, h); return; }
+  (VORM[a.vorm] || VORM.tegels)(c, w, h, rnd(a.id));
+}
+
+// ---------- spelers ----------
+var SPELERS = {};
+var startPunten = (function () {
+  var kand = [], xs = GEO.terrein.map(function (p) { return p[0]; }), ys = GEO.terrein.map(function (p) { return p[1]; });
+  for (var x = Math.min.apply(0, xs); x < Math.max.apply(0, xs); x += 3) for (var y = Math.min.apply(0, ys); y < Math.max.apply(0, ys); y += 3) {
+    var ok = true; for (var dx = -4; dx <= 4 && ok; dx += 4) for (var dy = -4; dy <= 4 && ok; dy += 4) if (!opGrond([x + dx, y + dy])) ok = false;
+    if (ok) kand.push([x, y]);
+  }
+  if (!kand.length) return [[0, 60], [5, 60], [10, 60], [15, 60]];
+  var gekozen = [kand[Math.floor(kand.length / 2)]];
+  while (gekozen.length < 4) {
+    var best = null, bd = -1;
+    kand.forEach(function (p) { var d = Math.min.apply(0, gekozen.map(function (q) { return Math.hypot(p[0] - q[0], p[1] - q[1]); })); if (d > bd) { bd = d; best = p; } });
+    gekozen.push(best);
+  }
+  return gekozen;
+})();
+for (var s = 1; s <= 4; s++) SPELERS[s] = { nr: s, actief: false, x: startPunten[s - 1][0], y: startPunten[s - 1][1], keuze: [0, 10, 18, 29][s - 1], rot: 0, vast: null, dx: 0, dy: 0, terug: [], toets: {}, combo: false, melding: '', meldT: 0, carT: 0 };
+
+function activeer(sp) {
+  if (sp.actief) return;
+  sp.actief = true; Kastjes.led(sp.nr, KLEUR[sp.nr]); tekenKaartjes();
+}
+function meld(sp, tekst) { sp.melding = tekst; sp.meldT = performance.now() + 1800; }
+
+function actie(sp) {
+  var p = [sp.x, sp.y];
+  if (sp.vast) { // loslaten
+    var it = sp.vast, r = waarom(it, it);
+    if (r) { meld(sp, r); return; }
+    sp.terug.push({ t: 'verplaats', it: it, x: it.oud.x, y: it.oud.y, rot: it.oud.rot });
+    delete it.oud; it.door = it.door || sp.nr; it.vastDoor = 0; sp.vast = null; bewaar(); return;
+  }
+  var onder = teOppakken(sp);
+  if (onder) {
+    if (onder.vastDoor) { meld(sp, 'Speler ' + onder.vastDoor + ' heeft dit vast'); return; }
+    onder.vastDoor = sp.nr; onder.oud = { x: onder.x, y: onder.y, rot: onder.rot }; sp.vast = onder; sp.dx = onder.x - sp.x; sp.dy = onder.y - sp.y; return;
+  }
+  var a = CAT[sp.keuze], nieuw = { id: a.id, x: sp.x, y: sp.y, rot: sp.rot, door: sp.nr, n: volgNr++ };
+  var reden = waarom(nieuw, null);
+  if (reden) { meld(sp, reden); return; }
+  if (besteed() + a.prijs > staat.budget) { meld(sp, 'Te duur: nog ' + eur(staat.budget - besteed()) + ' over'); return; }
+  if (a.grond) { // grond onder de rest leggen
+    var i = 0; while (i < staat.items.length && PER_ID[staat.items[i].id].grond) i++; staat.items.splice(i, 0, nieuw);
+  } else staat.items.push(nieuw);
+  sp.terug.push({ t: 'plaats', it: nieuw }); bewaar(); bijwerken();
+}
+// Wat pak je op als je drukt? Een los onderdeel altijd; een grondvlak alleen als je zelf ook een grondvlak gekozen hebt.
+function teOppakken(sp) {
+  var o = onderCursor([sp.x, sp.y]);
+  if (!o) return null;
+  if (!PER_ID[o.id].grond || CAT[sp.keuze].grond) return o;
+  return null;
+}
+function weghalen(sp) {
+  var it = sp.vast || onderCursor([sp.x, sp.y]);
+  if (!it) { meld(sp, 'Hier staat niets'); return; }
+  if (it.vastDoor && it.vastDoor !== sp.nr) { meld(sp, 'Speler ' + it.vastDoor + ' heeft dit vast'); return; }
+  if (sp.vast) { it.x = it.oud.x; it.y = it.oud.y; it.rot = it.oud.rot; delete it.oud; sp.vast = null; }
+  it.vastDoor = 0; var idx = staat.items.indexOf(it); staat.items.splice(idx, 1);
+  sp.terug.push({ t: 'weg', it: it, idx: idx }); meld(sp, PER_ID[it.id].naam + ' weg: +' + eur(PER_ID[it.id].prijs)); bewaar(); bijwerken();
+}
+function ongedaan(sp) {
+  if (sp.vast) { var v = sp.vast; v.x = v.oud.x; v.y = v.oud.y; v.rot = v.oud.rot; delete v.oud; v.vastDoor = 0; sp.vast = null; return; }
+  var t = sp.terug.pop(); if (!t) { meld(sp, 'Niets meer terug te zetten'); return; }
+  if (t.t === 'plaats') { var i = staat.items.indexOf(t.it); if (i >= 0 && !t.it.vastDoor) staat.items.splice(i, 1); }
+  else if (t.t === 'weg') staat.items.splice(Math.min(t.idx, staat.items.length), 0, t.it);
+  else if (t.t === 'verplaats' && !t.it.vastDoor) { t.it.x = t.x; t.it.y = t.y; t.it.rot = t.rot; }
+  meld(sp, 'Teruggezet'); bewaar(); bijwerken();
+}
+
+Kastjes.on(function (e) {
+  var sp = SPELERS[e.speler]; if (!sp) return;
+  if (!sp.actief) { activeer(sp); if (e.type !== 'joystick') return; } // eerste druk = meedoen, nog niets neerzetten
+  if (e.type === 'joystick-druk' && e.ingedrukt) actie(sp);
+  else if (e.type === 'knop' && e.welke === 'links') {
+    if (sp.vast) { meld(sp, 'Eerst loslaten'); return; }
+    sp.keuze = (sp.keuze + e.stap + CAT.length) % CAT.length; sp.carT = performance.now() + 1800; tekenKaartjes();
+  } else if (e.type === 'knop-druk' && e.welke === 'links' && e.ingedrukt) {
+    if (sp.vast) return;
+    var ci = (CATS.indexOf(CAT[sp.keuze].cat) + 1) % CATS.length;
+    for (var i = 0; i < CAT.length; i++) if (CAT[i].cat === CATS[ci]) { sp.keuze = i; break; }
+    sp.carT = performance.now() + 1800; tekenKaartjes();
+  } else if (e.type === 'knop' && e.welke === 'rechts') {
+    var st = Math.PI / 12 * e.stap;
+    if (sp.vast) sp.vast.rot += st; else sp.rot += st; tekenKaartjes();
+  } else if (e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt) {
+    var tgt = sp.vast || sp; tgt.rot = Math.round(tgt.rot / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 2; tekenKaartjes();
+  } else if (e.type === 'toets') {
+    // pas bij loslaten uitvoeren, zodat 1+2 samen (terug naar start) niets weghaalt
+    sp.toets[e.nr] = e.ingedrukt;
+    if (sp.toets[1] && sp.toets[2]) sp.combo = true;
+    if (!e.ingedrukt) {
+      if (!sp.combo) { if (e.nr === 1) weghalen(sp); else ongedaan(sp); }
+      if (!sp.toets[1] && !sp.toets[2]) sp.combo = false;
+    }
+  }
+});
+
+// ---------- HUD ----------
+var onder = document.getElementById('onder');
+var TIPS = {};
+(function () {
+  var T = Kastjes.toetsen, n = function (c) { return c.replace(/^Key|^Digit/, '').replace('Arrow', '').replace('BracketLeft', '[').replace('BracketRight', ']').replace('Semicolon', ';').replace('Quote', "'").replace('Backslash', '\\').replace('Period', '.').replace('Slash', '/').replace('Minus', '-').replace('Equal', '=').replace('Enter', '↵').replace('Up', '↑').replace('Down', '↓').replace('Left', '←').replace('Right', '→'); };
+  for (var s = 1; s <= 4; s++) { var t = T[s]; TIPS[s] = (s === 4 ? '↑←↓→' : n(t.boven) + n(t.links) + n(t.onder) + n(t.rechts)) + ' · ' + n(t.druk) + ' zet/pak · ' + n(t.knopLinksMin) + n(t.knopLinksPlus) + ' kies · ' + n(t.knopRechtsMin) + n(t.knopRechtsPlus) + ' draai · ' + n(t.toets1) + ' weg · ' + n(t.toets2) + ' terug'; }
+})();
+for (s = 1; s <= 4; s++) {
+  var d = document.createElement('div'); d.className = 'kaart glas slaapt'; d.id = 'kaart' + s; d.style.setProperty('--k', KLEUR[s]);
+  d.innerHTML = '<span class="badge">' + s + '</span><div class="kopje"><b>Speler ' + s + '</b><span class="led" style="--k:' + KLEUR[s] + '"></span></div>' +
+    '<canvas width="128" height="128"></canvas><div class="wat"></div><div class="info"></div><div class="tip">' + TIPS[s] + '</div>';
+  onder.appendChild(d);
+}
+function tekenKaartjes() {
+  for (var s = 1; s <= 4; s++) {
+    var sp = SPELERS[s], el = document.getElementById('kaart' + s), a = sp.vast ? PER_ID[sp.vast.id] : CAT[sp.keuze];
+    el.classList.toggle('slaapt', !sp.actief); el.querySelector('.led').classList.toggle('aan', sp.actief);
+    var mijn = staat.items.filter(function (it) { return it.door === s; }).reduce(function (t, it) { return t + PER_ID[it.id].prijs; }, 0);
+    el.querySelector('.wat').textContent = (sp.vast ? 'Vast: ' : '') + a.naam;
+    el.querySelector('.info').innerHTML = '<span><b>' + eur(a.prijs) + '</b></span><span>' + mtr(a.b) + '×' + mtr(a.d) + ' m</span><span>' + Math.round(((sp.vast ? sp.vast.rot : sp.rot) * 180 / Math.PI % 360 + 360) % 360) + '°</span><span>besteed ' + eur(mijn) + '</span>';
+    var c = el.querySelector('canvas').getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 128, 128);
+    var k = 104 / Math.max(a.b, a.d); c.translate(64, 64); c.scale(k, k); tekenAsset(c, a, a.b, a.d);
+  }
+}
+var lastBudget = '';
+function bijwerken() {
+  var b = besteed(), tot = staat.budget, m = { groen: 0, sport: 0, zit: 0, schaduw: 0 };
+  staat.items.forEach(function (it) { var a = PER_ID[it.id]; m.groen += a.groen; m.sport += a.sport; m.zit += a.zit; m.schaduw += a.schaduw; });
+  document.getElementById('besteed').textContent = eur(b);
+  document.getElementById('totaal').textContent = eur(tot);
+  document.getElementById('balk').style.width = Math.min(100, b / tot * 100) + '%';
+  document.getElementById('over').textContent = b > tot ? 'Te veel uitgegeven: ' + eur(b - tot) + ' eraf' : 'Nog ' + eur(tot - b) + ' te besteden · ' + staat.items.length + ' onderdelen';
+  document.getElementById('budget').classList.toggle('te-veel', b > tot);
+  ['groen', 'sport', 'zit', 'schaduw'].forEach(function (k) { document.getElementById('m-' + k).textContent = m[k]; });
+  tekenKaartjes();
+}
+document.getElementById('k-budget').onclick = function () { var i = BUDGETTEN.indexOf(staat.budget); staat.budget = BUDGETTEN[(i + 1) % BUDGETTEN.length]; bewaar(); bijwerken(); };
+var leegKlik = 0;
+document.getElementById('k-leeg').onclick = function (e) {
+  var nu = performance.now();
+  if (nu - leegKlik < 3000) { staat.items = []; for (var s = 1; s <= 4; s++) { SPELERS[s].vast = null; SPELERS[s].terug = []; } bewaar(); bijwerken(); e.target.textContent = 'Leeg'; leegKlik = 0; }
+  else { leegKlik = nu; e.target.textContent = 'Zeker?'; setTimeout(function () { e.target.textContent = 'Leeg'; }, 3000); }
+};
+
+// ---------- tekenen ----------
+var gebouwMidden = (function () { // punt diep in het gebouw voor het naambordje
+  var best = [0, 0], bs = -1;
+  for (var x = -60; x <= 60; x += 2) for (var y = -80; y <= 80; y += 2) {
+    if (!binnen([x, y], GEO.gebouw)) continue;
+    var n = 0; for (var a = 0; a < 16; a++) for (var r = 3; r <= 12; r += 3) if (binnen([x + Math.cos(a / 16 * 6.283) * r, y + Math.sin(a / 16 * 6.283) * r], GEO.gebouw)) n++;
+    if (n > bs) { bs = n; best = [x, y]; }
+  }
+  return best;
+})();
+function teken(nu) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+  wereldTransform(); var px = 1 / view.s;
+  function pad(poly) { ctx.beginPath(); poly.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); }
+
+  // terrein: bestaande bestrating met een raster van 2 meter
+  pad(GEO.terrein); ctx.fillStyle = 'rgba(0,0,0,.10)'; ctx.save(); ctx.translate(1.2, 1.6); ctx.fill(); ctx.restore();
+  pad(GEO.terrein); ctx.fillStyle = '#d9d5cc'; ctx.fill();
+  ctx.save(); pad(GEO.terrein); ctx.clip(); ctx.beginPath();
+  for (var g = -100; g <= 100; g += 2) { ctx.moveTo(g, -100); ctx.lineTo(g, 100); ctx.moveTo(-100, g); ctx.lineTo(100, g); }
+  ctx.strokeStyle = 'rgba(0,0,0,.05)'; ctx.lineWidth = px; ctx.stroke();
+  ctx.beginPath(); for (g = -100; g <= 100; g += 10) { ctx.moveTo(g, -100); ctx.lineTo(g, 100); ctx.moveTo(-100, g); ctx.lineTo(100, g); }
+  ctx.strokeStyle = 'rgba(0,0,0,.07)'; ctx.stroke(); ctx.restore();
+  // parkeerplaats
+  pad(GEO.parkeer); ctx.fillStyle = '#9b9890'; ctx.fill(); ctx.save(); pad(GEO.parkeer); ctx.clip(); ctx.beginPath();
+  for (g = -100; g < 100; g += 2.5) { ctx.moveTo(g, -100); ctx.lineTo(g + 60, 100); } ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = .12; ctx.stroke(); ctx.restore();
+  // pad langs de school
+  ctx.beginPath(); GEO.pad.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; ctx.setLineDash([1, 1]); ctx.stroke(); ctx.setLineDash([]);
+  // rand van het terrein
+  pad(GEO.terrein); ctx.strokeStyle = '#111'; ctx.lineWidth = 2 * px; ctx.stroke();
+
+  // onderdelen: eerst grond, dan de rest, bomen bovenop
+  var lagen = [[], [], []];
+  staat.items.forEach(function (it) { var a = PER_ID[it.id]; lagen[a.grond ? 0 : isBoom(a) ? 2 : 1].push(it); });
+  lagen.forEach(function (l) { l.forEach(function (it) {
+    var a = PER_ID[it.id]; ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+    if (it.vastDoor) ctx.globalAlpha = .85;
+    tekenAsset(ctx, a, a.b, a.d);
+    if (it.vastDoor) { ctx.globalAlpha = 1; ctx.strokeStyle = KLEUR[it.vastDoor]; ctx.lineWidth = 3 * px; ctx.strokeRect(-a.b / 2 - 3 * px, -a.d / 2 - 3 * px, a.b + 6 * px, a.d + 6 * px);
+      if (waarom(it, it)) { ctx.fillStyle = 'rgba(229,55,42,.28)'; ctx.fillRect(-a.b / 2, -a.d / 2, a.b, a.d); } }
+    ctx.restore();
+  }); });
+
+  // gebouw (bovenop, zodat bomen die eroverheen hangen er niet over vallen)
+  pad(GEO.gebouw); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.save(); ctx.translate(.8, 1.1); ctx.fill(); ctx.restore();
+  pad(GEO.gebouw); ctx.fillStyle = '#2a2a2a'; ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = px; ctx.stroke();
+  ctx.save(); pad(GEO.gebouw); ctx.clip(); ctx.beginPath(); for (g = -120; g < 120; g += 3) { ctx.moveTo(g, -120); ctx.lineTo(g, 120); } ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = .4; ctx.stroke(); ctx.restore();
+  pad(GEO.schuur); ctx.fillStyle = '#444'; ctx.fill();
+
+  // spookbeeld van wat je gaat neerzetten
+  for (var s = 1; s <= 4; s++) {
+    var sp = SPELERS[s]; if (!sp.actief || sp.vast) continue;
+    var a = CAT[sp.keuze], spook = { id: a.id, x: sp.x, y: sp.y, rot: sp.rot }, fout = waarom(spook, null) || (besteed() + a.prijs > staat.budget);
+    if (teOppakken(sp)) continue;
+    ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(sp.rot); ctx.globalAlpha = .5; tekenAsset(ctx, a, a.b, a.d); ctx.globalAlpha = 1;
+    ctx.setLineDash([4 * px, 3 * px]); ctx.strokeStyle = fout ? '#e5372a' : KLEUR[s]; ctx.lineWidth = 2 * px; ctx.strokeRect(-a.b / 2, -a.d / 2, a.b, a.d); ctx.setLineDash([]); ctx.restore();
+  }
+
+  // schermlaag: cursors, meldingen, keuzerijtje, noordpijl, schaal
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var ingang = naarScherm(GEO.adres[0]);
+  label(ingang[0], ingang[1] - 14, 'INGANG', '#fff', 'rgba(17,17,17,.85)');
+  var ms = naarScherm(gebouwMidden); ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.textAlign = 'center'; ctx.fillText('CANDEA COLLEGE', ms[0], ms[1]);
+  var pk = naarScherm([48, -42]); label(pk[0], pk[1], 'P', '#111', 'rgba(255,255,255,.85)');
+  noordpijl(); schaalbalk();
+
+  for (s = 1; s <= 4; s++) {
+    sp = SPELERS[s]; if (!sp.actief) continue;
+    var q = naarScherm([sp.x, sp.y]);
+    ctx.beginPath(); ctx.arc(q[0], q[1], 11, 0, 7); ctx.fillStyle = KLEUR[s] + '33'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = KLEUR[s]; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(q[0] - 17, q[1]); ctx.lineTo(q[0] - 6, q[1]); ctx.moveTo(q[0] + 6, q[1]); ctx.lineTo(q[0] + 17, q[1]); ctx.moveTo(q[0], q[1] - 17); ctx.lineTo(q[0], q[1] - 6); ctx.moveTo(q[0], q[1] + 6); ctx.lineTo(q[0], q[1] + 17); ctx.stroke();
+    ctx.fillStyle = '#111'; ctx.font = '700 11px "JetBrains Mono", monospace'; ctx.textAlign = 'left'; ctx.fillText(String(s), q[0] + 10, q[1] - 10);
+    if (sp.carT > nu) keuzeRij(sp, q);
+    if (sp.meldT > nu) label(q[0], q[1] + 32, sp.melding, '#fff', 'rgba(17,17,17,.86)');
+  }
+}
+function label(x, y, t, kl, bg) {
+  ctx.font = '600 11px "JetBrains Mono", monospace'; var w = ctx.measureText(t).width + 16;
+  ctx.fillStyle = bg; rr(ctx, x - w / 2, y - 11, w, 22, 11); ctx.fill(); ctx.fillStyle = kl; ctx.textAlign = 'center'; ctx.fillText(t, x, y + 4);
+}
+function keuzeRij(sp, q) {
+  var n = 5, sz = 54, gap = 6, W2 = n * sz + (n - 1) * gap + 16, x0 = q[0] - W2 / 2, y0 = q[1] - 32 - sz - 30;
+  if (y0 < 110) y0 = q[1] + 40;
+  ctx.fillStyle = 'rgba(255,255,255,.82)'; rr(ctx, x0, y0, W2, sz + 34, 14); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 1; ctx.stroke();
+  for (var i = -2; i <= 2; i++) {
+    var a = CAT[(sp.keuze + i + CAT.length) % CAT.length], x = x0 + 8 + (i + 2) * (sz + gap), y = y0 + 8;
+    ctx.save(); ctx.globalAlpha = i === 0 ? 1 : .45; ctx.fillStyle = i === 0 ? KLEUR[sp.nr] + '30' : 'rgba(0,0,0,.04)'; rr(ctx, x, y, sz, sz, 9); ctx.fill();
+    if (i === 0) { ctx.strokeStyle = KLEUR[sp.nr]; ctx.lineWidth = 2; ctx.stroke(); }
+    var k = (sz - 10) / Math.max(a.b, a.d); ctx.translate(x + sz / 2, y + sz / 2); ctx.scale(k, k); tekenAsset(ctx, a, a.b, a.d); ctx.restore();
+  }
+  var c = CAT[sp.keuze]; ctx.fillStyle = '#111'; ctx.font = '700 12px "Inter Tight", sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(c.naam + ' · ' + eur(c.prijs), q[0], y0 + sz + 26);
+}
+function noordpijl() {
+  var x = W - 52, y = document.querySelector('.boven').getBoundingClientRect().bottom + 44;
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, 7); ctx.fill();
+  ctx.rotate(view.th); ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(6, 4); ctx.lineTo(0, 0); ctx.lineTo(-6, 4); ctx.closePath(); ctx.fillStyle = '#ff5a00'; ctx.fill();
+  ctx.rotate(-view.th); ctx.fillStyle = '#111'; ctx.font = '700 9px "JetBrains Mono", monospace'; ctx.textAlign = 'center';
+  var nx = Math.sin(view.th) * 30, ny = -Math.cos(view.th) * 30; ctx.fillText('N', nx, ny + 3); ctx.restore();
+}
+function schaalbalk() {
+  var y = document.querySelector('.onder').getBoundingClientRect().top - 18, x = W - 40 - 20 * view.s;
+  ctx.fillStyle = '#111'; ctx.fillRect(x, y, 20 * view.s, 3); ctx.fillRect(x, y - 4, 2, 7); ctx.fillRect(x + 20 * view.s - 2, y - 4, 2, 7);
+  ctx.font = '600 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('20 M', x + 10 * view.s, y - 7);
+}
+
+// ---------- lus: vloeiend lopen met de joystick ----------
+var vorige = performance.now();
+function lus(nu) {
+  var dt = Math.min(.05, (nu - vorige) / 1000); vorige = nu;
+  var c = Math.cos(-view.th), sn = Math.sin(-view.th);
+  for (var s = 1; s <= 4; s++) {
+    var sp = SPELERS[s], j = Kastjes.joystick(s);
+    if (!j.x && !j.y) continue;
+    activeer(sp);
+    var v = 230 * dt / view.s, dx = j.x * v, dy = j.y * v;
+    sp.x += dx * c - dy * sn; sp.y += dx * sn + dy * c;
+    sp.x = Math.max(-75, Math.min(75, sp.x)); sp.y = Math.max(-95, Math.min(95, sp.y));
+    if (sp.vast) { sp.vast.x = sp.x + sp.dx; sp.vast.y = sp.y + sp.dy; }
+  }
+  teken(nu); requestAnimationFrame(lus);
+}
+addEventListener('resize', maat);
+maat(); bijwerken(); requestAnimationFrame(lus);
+if (document.fonts) document.fonts.ready.then(function () { maat(); });
+})();
+</script>
+</body>
+</html>

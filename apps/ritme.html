@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ritmebox</title>
+<link rel="stylesheet" href="../te-glas.css">
+<style>
+/* Ritmebox: vier sporen x 16 stappen. Iedereen mag overal bij; elk spoor heeft een vaste spelerkleur. */
+.pagina{position:relative;z-index:1;height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:16px;padding:18px 22px 20px 40px}
+.kopbalk{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:26px;padding:14px 20px}
+.titel{display:flex;align-items:baseline;gap:12px}
+.titel .kop span{color:var(--oranje)}
+.tempo{display:flex;align-items:baseline;gap:8px}
+.tempo b{font:700 44px/1 var(--m);letter-spacing:-.02em}
+.stappen{display:grid;grid-template-columns:repeat(16,1fr);gap:6px;max-width:640px;width:100%;justify-self:center}
+.stappen .led{width:100%;height:8px;border-radius:2px}
+.stappen .led:nth-child(4n+1){background:#b5b5ae}
+.speel{display:flex;align-items:center;gap:10px;font:700 12px var(--m);letter-spacing:.14em;text-transform:uppercase}
+.speel .driehoek{width:0;height:0;border-left:16px solid var(--ink);border-top:10px solid transparent;border-bottom:10px solid transparent}
+.speel.stop .driehoek{width:16px;height:16px;border:0;background:var(--ink);border-radius:2px}
+
+.machine{display:grid;grid-template-rows:repeat(4,1fr);gap:12px;padding:18px 20px;min-height:0}
+.spoor{display:grid;grid-template-columns:230px 1fr;gap:18px;align-items:stretch;min-height:0}
+.info{display:grid;align-content:center;gap:7px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.75)}
+.info .top{display:flex;align-items:center;gap:10px}
+.info .badge{width:28px;height:28px;border-radius:7px;background:var(--k);display:grid;place-items:center;font:700 12px var(--m);color:#111;box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+.info .naam{font:800 18px/1 var(--f);letter-spacing:-.01em}
+.info .klank{font:600 11px var(--m);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.info .rij{display:flex;align-items:center;gap:8px;font:500 10px var(--m);letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.info .balk{flex:1}
+.cellen{display:grid;grid-template-columns:repeat(16,1fr);column-gap:7px;align-items:stretch}
+.cellen .cel:nth-child(4n+1){margin-left:7px}
+.cellen .cel:first-child{margin-left:0}
+.cel{position:relative;border-radius:9px;background:rgba(255,255,255,.45);border:1px solid rgba(0,0,0,.10);box-shadow:inset 0 -3px 0 rgba(0,0,0,.06);transition:background .08s,transform .08s}
+.cel.aan{background:var(--k);border-color:rgba(0,0,0,.18);box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
+.cel.nu{transform:translateY(-2px)}
+.cel.nu:not(.aan){background:rgba(255,255,255,.85)}
+.cel.nu.aan{filter:brightness(1.15) saturate(1.2);box-shadow:inset 0 -4px 0 rgba(0,0,0,.18),0 0 18px var(--k)}
+.cel .toon{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font:700 10px var(--m);color:rgba(0,0,0,.55)}
+.cursor{position:absolute;inset:-5px;border:3px solid var(--k);border-radius:12px;pointer-events:none}
+.cursor b{position:absolute;top:-11px;left:-8px;width:18px;height:18px;border-radius:50%;background:var(--k);color:#111;font:700 10px/18px var(--m);text-align:center;border:2px solid #fff}
+.cursor.c2{inset:-10px}.cursor.c3{inset:-15px}.cursor.c4{inset:-20px}
+.cursor.c2 b{left:auto;right:-8px}.cursor.c3 b{top:auto;bottom:-11px}.cursor.c4 b{top:auto;bottom:-11px;left:auto;right:-8px}
+
+.onder{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;padding:12px 14px;align-items:center}
+.onder .ctl{display:grid;gap:3px;padding:6px 10px;border-left:1px solid var(--hair)}
+.onder .ctl:first-child{border-left:0}
+.onder .ctl b{font:600 13px/1.2 var(--f)}
+.geluid{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:rgba(228,228,224,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer}
+.geluid.aan{display:grid}
+.geluid .glas{padding:28px 36px;text-align:center;display:grid;gap:10px}
+</style>
+</head>
+<body>
+<div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
+<div class="pagina">
+  <header class="kopbalk glas">
+    <div class="titel"><span class="nr">03</span><h1 class="kop">RITME<span>BOX</span></h1></div>
+    <div class="stappen" id="stappen"></div>
+    <div style="display:flex;align-items:center;gap:26px">
+      <div class="tempo"><b id="bpm">100</b><span class="label">bpm</span></div>
+      <div class="speel" id="speel"><span class="driehoek"></span><span id="speelTekst">speelt</span></div>
+    </div>
+  </header>
+  <main class="machine glas" id="machine"></main>
+  <footer class="onder glas">
+    <div class="ctl"><span class="label">joystick</span><b>links/rechts: stap · boven/onder: spoor · druk: aan/uit</b></div>
+    <div class="ctl"><span class="label">knop links</span><b>toonhoogte van de stap</b></div>
+    <div class="ctl"><span class="label">knop rechts</span><b>volume · ingedrukt draaien: tempo</b></div>
+    <div class="ctl"><span class="label">toets 1</span><b>andere klank</b></div>
+    <div class="ctl"><span class="label">toets 2</span><b>start / stop</b></div>
+    <div class="ctl"><span class="label">toets 2 lang</span><b>spoor leeg</b></div>
+  </footer>
+</div>
+<div class="geluid" id="geluid"><div class="glas sterk"><div class="kop">Geluid aanzetten</div><div class="label">klik hier of druk op een toets van het toetsenbord</div><div style="font-size:13px;color:var(--ink-2);max-width:380px">Chrome laat pas geluid horen na een klik of toets. Daarna doen de kastjes alles.</div></div></div>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KLEUR = { 1: '#ff7a1a', 2: '#3b8bff', 3: '#21c06b', 4: '#b768ff' };
+  var DONKER = { 1: '#331800', 2: '#0b1c33', 3: '#062a17', 4: '#251533' };
+  var SPOREN = [
+    { naam: 'Kick', klanken: ['diep', 'kort', 'boem', 'tik'] },
+    { naam: 'Snare', klanken: ['snare', 'klap', 'rand', 'knip'] },
+    { naam: 'Hihat', klanken: ['dicht', 'open', 'shaker', 'koebel'] },
+    { naam: 'Bas', klanken: ['zaag', 'blok', 'sub', 'pluk'] }
+  ];
+  var N = 16;
+
+  // ---------- toestand ----------
+  var st = {
+    bpm: 100, speelt: true, stap: -1,
+    sporen: SPOREN.map(function () { return { klank: 0, volume: 0.8 }; }),
+    stappen: SPOREN.map(function (s, i) {
+      var a = []; for (var k = 0; k < N; k++) a.push({ aan: i === 0 && k % 4 === 0, toon: 0 }); return a;
+    }),
+    cur: { 1: { r: 0, c: 0 }, 2: { r: 1, c: 0 }, 3: { r: 2, c: 0 }, 4: { r: 3, c: 0 } },
+    actief: {}
+  };
+
+  // ---------- opbouw ----------
+  var stappenEl = document.getElementById('stappen');
+  for (var i = 0; i < N; i++) stappenEl.appendChild(Object.assign(document.createElement('span'), { className: 'led' }));
+  var machine = document.getElementById('machine');
+  var cellen = [];
+  SPOREN.forEach(function (sp, r) {
+    var rij = document.createElement('div');
+    rij.className = 'spoor'; rij.style.setProperty('--k', KLEUR[r + 1]);
+    rij.innerHTML = '<div class="info"><div class="top"><span class="badge">' + (r + 1) + '</span><span class="naam">' + sp.naam + '</span></div>' +
+      '<div class="klank" id="kl' + r + '"></div><div class="rij">vol <div class="balk"><i id="vol' + r + '"></i></div></div></div><div class="cellen"></div>';
+    var c = rij.querySelector('.cellen'); cellen[r] = [];
+    for (var k = 0; k < N; k++) { var cel = document.createElement('div'); cel.className = 'cel'; c.appendChild(cel); cellen[r].push(cel); }
+    machine.appendChild(rij);
+  });
+
+  function teken() {
+    for (var r = 0; r < 4; r++) {
+      document.getElementById('kl' + r).textContent = '◆ ' + SPOREN[r].klanken[st.sporen[r].klank];
+      document.getElementById('vol' + r).style.width = Math.round(st.sporen[r].volume * 100) + '%';
+      for (var k = 0; k < N; k++) {
+        var cel = cellen[r][k], s = st.stappen[r][k];
+        cel.classList.toggle('aan', s.aan);
+        cel.innerHTML = s.aan && s.toon ? '<span class="toon">' + (s.toon > 0 ? '+' : '') + s.toon + '</span>' : '';
+      }
+    }
+    for (var p = 1; p <= 4; p++) {
+      if (!st.actief[p]) continue;
+      var c = st.cur[p], d = document.createElement('div');
+      d.className = 'cursor c' + p; d.style.setProperty('--k', KLEUR[p]); d.innerHTML = '<b>' + p + '</b>';
+      cellen[c.r][c.c].appendChild(d);
+    }
+    document.getElementById('bpm').textContent = st.bpm;
+    var sp = document.getElementById('speel');
+    sp.classList.toggle('stop', !st.speelt);
+    document.getElementById('speelTekst').textContent = st.speelt ? 'speelt' : 'stil';
+  }
+  function tekenNu() {
+    var leds = stappenEl.children;
+    for (var k = 0; k < N; k++) {
+      leds[k].classList.toggle('aan', k === st.stap);
+      for (var r = 0; r < 4; r++) cellen[r][k].classList.toggle('nu', k === st.stap);
+    }
+  }
+
+  // ---------- geluid (Web Audio, alles gesynthetiseerd) ----------
+  var ctx = null, ruis = null, master = null;
+  function maakAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createDynamicsCompressor(); master.connect(ctx.destination);
+    ruis = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    var d = ruis.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function env(t, piek, duur, vol) {
+    var g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, piek * vol), t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duur); g.connect(master); return g;
+  }
+  function ruisBron(t, duur) { var b = ctx.createBufferSource(); b.buffer = ruis; b.start(t); b.stop(t + duur + .05); return b; }
+  function osc(type, f, t, duur) { var o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.start(t); o.stop(t + duur + .05); return o; }
+  var PENTA = [0, 3, 5, 7, 10];
+  function semi(n) { return Math.pow(2, n / 12); }
+  function speel(r, t, toon, vol) {
+    var k = st.sporen[r].klank, p = semi(toon);
+    if (r === 0) { // kick
+      var duur = [0.45, 0.18, 0.9, 0.12][k], o = osc('sine', 150 * p, t, duur), g = env(t, 1.2, duur, vol);
+      o.frequency.exponentialRampToValueAtTime(Math.max(20, [45, 55, 38, 90][k] * p), t + duur * 0.6); o.connect(g);
+      if (k === 3) { var c = osc('square', 1800 * p, t, 0.01), gc = env(t, 0.3, 0.015, vol); c.connect(gc); }
+    } else if (r === 1) { // snare
+      if (k === 1) { for (var i = 0; i < 3; i++) { var tt = t + i * 0.011, n = ruisBron(tt, 0.12), bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300 * p; bp.Q.value = 1.2; n.connect(bp); bp.connect(env(tt, 0.9, i === 2 ? 0.18 : 0.02, vol)); } return; }
+      var dn = [0.2, 0, 0.06, 0.09][k], nb = ruisBron(t, dn), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = [1200, 0, 2500, 3500][k] * p;
+      nb.connect(hp); hp.connect(env(t, k === 2 ? 0.3 : 0.8, dn, vol));
+      var tri = osc('triangle', [190, 0, 420, 900][k] * p, t, 0.1); tri.connect(env(t, k === 2 ? 0.9 : 0.5, [0.1, 0, 0.05, 0.03][k], vol));
+    } else if (r === 2) { // hihat
+      if (k === 3) { [540, 800].forEach(function (f) { var o2 = osc('square', f * p, t, 0.25), bp2 = ctx.createBiquadFilter(); bp2.type = 'bandpass'; bp2.frequency.value = 2640 * p; o2.connect(bp2); bp2.connect(env(t, 0.25, 0.25, vol)); }); return; }
+      var dh = [0.05, 0.32, 0.09, 0][k], nh = ruisBron(t, dh), f2 = ctx.createBiquadFilter(); f2.type = k === 2 ? 'bandpass' : 'highpass'; f2.frequency.value = (k === 2 ? 5000 : 7500) * p;
+      nh.connect(f2); f2.connect(env(t, k === 2 ? 0.5 : 0.45, dh, vol));
+    } else { // bas, toon = stap in de pentatonische toonladder
+      var oct = Math.floor(toon / 5), idx = ((toon % 5) + 5) % 5, f = 55 * semi(PENTA[idx] + 12 * oct);
+      var type = ['sawtooth', 'square', 'sine', 'triangle'][k], db = [0.22, 0.2, 0.35, 0.14][k];
+      var ob = osc(type, f, t, db), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = k === 0 ? 8 : 2;
+      lp.frequency.setValueAtTime(k === 3 ? 2400 : 900, t); lp.frequency.exponentialRampToValueAtTime(160, t + db);
+      ob.connect(lp); lp.connect(env(t, k === 2 ? 1.1 : 0.7, db, vol));
+    }
+  }
+
+  // ---------- klok (vooruit plannen, zodat de maat strak blijft) ----------
+  var volgende = 0, plan = [];
+  function planner() {
+    if (ctx && st.speelt && ctx.state === 'running') {
+      while (volgende < ctx.currentTime + 0.12) {
+        var stap = (st.stapGepland = ((st.stapGepland == null ? -1 : st.stapGepland) + 1) % N);
+        for (var r = 0; r < 4; r++) {
+          var s = st.stappen[r][stap];
+          if (s.aan && st.sporen[r].volume > 0) { speel(r, volgende, s.toon, st.sporen[r].volume); plan.push({ t: volgende, flits: r + 1 }); }
+        }
+        plan.push({ t: volgende, stap: stap });
+        volgende += 60 / st.bpm / 4;
+      }
+    }
+    // visueel bijhouden
+    var nu = ctx ? ctx.currentTime : 0;
+    while (plan.length && plan[0].t <= nu) {
+      var p = plan.shift();
+      if (p.stap != null) { st.stap = p.stap; tekenNu(); }
+      if (p.flits) flits(p.flits);
+    }
+    requestAnimationFrame(planner);
+  }
+  requestAnimationFrame(planner);
+  var flitsT = {};
+  function flits(s) {
+    Kastjes.led(s, KLEUR[s]);
+    clearTimeout(flitsT[s]); flitsT[s] = setTimeout(function () { Kastjes.led(s, DONKER[s]); }, 90);
+  }
+  function start() { maakAudio(); if (ctx.state !== 'running') ctx.resume(); volgende = ctx.currentTime + 0.05; st.stapGepland = -1; plan = []; }
+  function stop() { plan = []; st.stap = -1; tekenNu(); }
+
+  // geluid aanzetten (Chrome wil een echte klik of toets)
+  var geluid = document.getElementById('geluid');
+  function ontgrendel() { maakAudio(); ctx.resume().then(function () { geluid.classList.remove('aan'); if (st.speelt) start(); }); }
+  geluid.addEventListener('click', ontgrendel);
+  window.addEventListener('keydown', function () { if (!ctx || ctx.state !== 'running') ontgrendel(); });
+  window.addEventListener('pointerdown', function () { if (!ctx || ctx.state !== 'running') ontgrendel(); });
+  try { maakAudio(); if (ctx.state === 'running') start(); else geluid.classList.add('aan'); } catch (e) { geluid.classList.add('aan'); }
+
+  // ---------- kastjes ----------
+  var knopVast = {}, toetsBegin = {}, toetsVast = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {};
+  Kastjes.on(function (e) {
+    var p = e.speler, c = st.cur[p];
+    if (!st.actief[p]) { st.actief[p] = true; Kastjes.led(p, DONKER[p]); }
+    if (e.type === 'joystick') {
+      if (e.richting === 'links') c.c = (c.c + N - 1) % N;
+      if (e.richting === 'rechts') c.c = (c.c + 1) % N;
+      if (e.richting === 'boven') c.r = (c.r + 3) % 4;
+      if (e.richting === 'onder') c.r = (c.r + 1) % 4;
+    } else if (e.type === 'joystick-druk' && e.ingedrukt) {
+      var s = st.stappen[c.r][c.c]; s.aan = !s.aan;
+      if (s.aan && ctx && ctx.state === 'running') speel(c.r, ctx.currentTime, s.toon, st.sporen[c.r].volume);
+    } else if (e.type === 'knop' && e.welke === 'links') {
+      var s2 = st.stappen[c.r][c.c];
+      if (!s2.aan) s2.aan = true;
+      s2.toon = Math.max(-12, Math.min(12, s2.toon + e.stap));
+      if (ctx && ctx.state === 'running') speel(c.r, ctx.currentTime, s2.toon, st.sporen[c.r].volume);
+    } else if (e.type === 'knop' && e.welke === 'rechts') {
+      if (knopVast[p]) st.bpm = Math.max(60, Math.min(180, st.bpm + e.stap * 2));
+      else st.sporen[c.r].volume = Math.max(0, Math.min(1, Math.round((st.sporen[c.r].volume + e.stap * 0.1) * 10) / 10));
+    } else if (e.type === 'knop-druk' && e.welke === 'rechts') {
+      knopVast[p] = e.ingedrukt;
+    } else if (e.type === 'toets') {
+      toetsVast[p][e.nr] = e.ingedrukt;
+      if (toetsVast[p][1] && toetsVast[p][2]) combo[p] = true; // twee toetsen = terug naar start, niet hier
+      if (e.ingedrukt) { toetsBegin[p + '-' + e.nr] = performance.now(); return; }
+      var lang = performance.now() - (toetsBegin[p + '-' + e.nr] || 0) > 700;
+      if (combo[p]) { if (!toetsVast[p][1] && !toetsVast[p][2]) combo[p] = false; return; }
+      if (e.nr === 1) { var sp = st.sporen[c.r]; sp.klank = (sp.klank + 1) % 4; if (ctx && ctx.state === 'running') speel(c.r, ctx.currentTime, 0, sp.volume); }
+      if (e.nr === 2 && lang) st.stappen[c.r].forEach(function (x) { x.aan = false; x.toon = 0; });
+      else if (e.nr === 2) { st.speelt = !st.speelt; if (st.speelt) start(); else stop(); }
+    }
+    teken();
+  });
+  teken(); tekenNu();
+})();
+</script>
+</body>
+</html>

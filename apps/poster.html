@@ -1,0 +1,1079 @@
+<title>Kastjes testpagina</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=Bebas+Neue&family=Playfair+Display:wght@400;700;900&family=Space+Mono:wght@400;700&family=Pacifico&family=Archivo+Black&family=Caveat:wght@400;700&display=swap">
+<style>
+/* Opzet: één klasscherm. Poster in het midden, links en rechts elk twee spelershoeken
+   (zoals de leerlingen zitten: twee links, twee rechts van de iMac). Bewust één donker
+   uiterlijk, zodat de vier spelerkleuren en de poster zelf het meest opvallen. */
+:root {
+  color-scheme: dark;
+  --bg: #14161b;
+  --paneel: #1d2028;
+  --paneel-2: #252934;
+  --lijn: #323745;
+  --tekst: #eceef3;
+  --zacht: #9aa1b2;
+  --goed: #3ecf7a;
+  --matig: #f2c14e;
+  --slecht: #ff5c5c;
+  --s1: #ff7a1a;
+  --s2: #3b8bff;
+  --s3: #21c06b;
+  --s4: #b768ff;
+  --font-kop: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --font-tekst: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-data: 'Space Mono', Menlo, monospace;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--tekst);
+  font-family: var(--font-tekst); font-size: 14px;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--tekst); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- bovenbalk ---------- */
+.balk { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.balk h1 { font-family: var(--font-kop); font-size: 17px; font-weight: 700; margin: 0; letter-spacing: .01em; white-space: nowrap; }
+.opdracht { flex: 1 1 260px; min-width: 0; color: var(--zacht); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opdracht b { color: var(--tekst); font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--paneel); border: 1px solid var(--lijn); font-size: 12.5px; white-space: nowrap; }
+.chip .stip { width: 8px; height: 8px; border-radius: 50%; background: var(--zacht); }
+.knopje { cursor: pointer; padding: 6px 12px; border-radius: 8px; background: var(--paneel-2); border: 1px solid var(--lijn); font-size: 13px; font-weight: 500; }
+.knopje:hover { background: var(--lijn); }
+
+/* ---------- midden ---------- */
+.midden { display: grid; grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr); gap: 14px; min-height: 0; }
+.kolom { display: grid; grid-template-rows: 1fr 1fr; gap: 14px; min-height: 0; min-width: 0; }
+.podium { position: relative; height: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.poster-wrap { position: relative; height: 100%; aspect-ratio: 1 / 1.4142; max-width: 100%; }
+.poster, .mini {
+  position: absolute; inset: 0; overflow: hidden; container-type: size;
+  box-shadow: 0 10px 40px rgba(0,0,0,.45);
+}
+.el { position: absolute; white-space: nowrap; line-height: 1; user-select: none; }
+.vorm-in { width: 100%; height: 100%; }
+.laag-over { position: absolute; inset: -40px; pointer-events: none; z-index: 5; }
+
+.omlijning { position: absolute; border-radius: 4px; pointer-events: none; transition: left .08s, top .08s, width .08s, height .08s; }
+.omlijning.kijkt { border: 2px dashed var(--kleur); }
+.omlijning.vast { border: 3px solid var(--kleur); box-shadow: 0 0 0 3px rgba(0,0,0,.25); }
+.omlijning .label { position: absolute; left: -3px; top: -24px; background: var(--kleur); color: #111; font: 700 11px var(--font-kop); padding: 3px 7px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
+.slot { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: var(--kleur); display: grid; place-items: center; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.slot svg { width: 12px; height: 12px; }
+.cursor { position: absolute; width: 30px; height: 30px; pointer-events: none; transition: left .12s ease-out, top .12s ease-out; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.cursor svg { display: block; }
+.cursor .nr { position: absolute; left: 17px; top: 17px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--kleur); color: #111; font: 700 11px/18px var(--font-kop); text-align: center; border: 2px solid #fff; }
+
+/* ---------- spelershoeken ---------- */
+.speler { position: relative; background: var(--paneel); border: 1px solid var(--lijn); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden; }
+.speler.actief { border-color: color-mix(in srgb, var(--kleur) 55%, var(--lijn)); }
+.speler::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--kleur); opacity: .25; }
+.speler.actief::before { opacity: 1; }
+.speler .kop { display: flex; align-items: center; gap: 10px; }
+.speler .badge { width: 34px; height: 34px; border-radius: 10px; background: var(--kleur); color: #111; display: grid; place-items: center; font: 700 18px var(--font-kop); flex: none; }
+.speler.inactief .badge { background: var(--paneel-2); color: var(--kleur); border: 2px solid var(--kleur); }
+.speler .naam { font: 700 16px var(--font-kop); }
+.speler .rol { font-size: 12.5px; color: var(--zacht); }
+.speler .rol b { color: var(--tekst); font-weight: 600; }
+.speler .weg { margin-left: auto; cursor: pointer; background: none; border: 0; color: var(--zacht); font-size: 18px; padding: 2px 6px; border-radius: 6px; }
+.speler .weg:hover { background: var(--paneel-2); color: var(--tekst); }
+.leds { display: flex; gap: 4px; }
+.leds i { width: 10px; height: 10px; border-radius: 50%; background: #2a2e38; transition: background .2s, box-shadow .2s; }
+.speler.ruilt .leds i { animation: knipper .6s infinite alternate; }
+@keyframes knipper { to { opacity: .25; } }
+.waarop { font-size: 13px; color: var(--zacht); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.waarop b { color: var(--tekst); font-weight: 600; }
+.draai { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 0; }
+.draai .vak { background: var(--paneel-2); border-radius: 10px; padding: 10px; min-width: 0; }
+.vak .wat { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--zacht); margin-bottom: 6px; }
+.wiel { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.wiel span { color: var(--zacht); opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wiel span.nu { color: var(--tekst); opacity: 1; font-weight: 600; font-size: 15px; }
+.waarde { font: 700 22px var(--font-kop); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+.waarde .staal { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,.3); flex: none; }
+.meter { height: 6px; border-radius: 3px; background: #2a2e38; margin-top: 8px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--kleur); border-radius: 3px; transition: width .12s; }
+.melding { font-size: 13.5px; color: var(--tekst); font-weight: 600; }
+.status { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.spiek { font-size: 12px; color: var(--zacht); line-height: 1.9; }
+.status .chip { font-size: 12px; padding: 4px 9px; }
+.chip.aan { background: var(--kleur); color: #111; border-color: transparent; font-weight: 600; }
+.uitleg { font-size: 13px; color: var(--zacht); line-height: 1.5; }
+.uitleg kbd, .hulp kbd, .spiek kbd { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 5px; background: var(--paneel-2); border: 1px solid var(--lijn); border-bottom-width: 2px; font: 600 12px var(--font-data); color: var(--tekst); text-align: center; }
+.speler.flits { animation: flits .5s; }
+@keyframes flits { 0%,100% { background: var(--paneel); } 30% { background: color-mix(in srgb, var(--slecht) 30%, var(--paneel)); } }
+
+/* ---------- versies ---------- */
+.versies { display: flex; align-items: center; gap: 10px; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
+.versies .titel { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--zacht); white-space: nowrap; }
+.versie { position: relative; height: 74px; aspect-ratio: 1 / 1.4142; flex: none; cursor: pointer; border-radius: 3px; border: 2px solid transparent; padding: 0; background: none; }
+.versie:hover { border-color: var(--tekst); }
+.versie .mini { box-shadow: none; border-radius: 1px; }
+.versie span { position: absolute; left: 3px; bottom: 3px; background: rgba(0,0,0,.7); color: #fff; font: 700 10px var(--font-kop); padding: 1px 5px; border-radius: 3px; z-index: 2; }
+.versies .leeg { color: var(--zacht); font-size: 13px; }
+
+/* ---------- lagen over het podium ---------- */
+.toasts { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; z-index: 20; pointer-events: none; width: max-content; max-width: 100%; }
+.toast { background: #0d0f13ee; border: 2px solid var(--kleur, var(--tekst)); padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 500; animation: in .2s ease-out; max-width: 100%; }
+@keyframes in { from { opacity: 0; transform: translateY(-6px); } }
+
+.startscherm { position: absolute; inset: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 20px; border-radius: 6px; text-align: center; }
+.startscherm h2 { font: 700 clamp(26px, 4vh, 40px) var(--font-kop); margin: 0; text-wrap: balance; }
+.startscherm p { margin: 0; color: var(--zacht); max-width: 46ch; line-height: 1.5; }
+.keuzes { display: grid; grid-template-columns: repeat(2, minmax(0, 190px)); gap: 12px; }
+.keuze { background: var(--paneel); border: 2px solid var(--lijn); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; align-items: center; min-height: 104px; justify-content: center; }
+.keuze.mee { border-color: var(--kleur); }
+.keuze.gekozen { background: color-mix(in srgb, var(--kleur) 22%, var(--paneel)); }
+.keuze .wie { font: 700 13px var(--font-kop); color: var(--kleur); }
+.keuze .r { font: 700 22px var(--font-kop); }
+.keuze .klein { font-size: 12px; color: var(--zacht); }
+.aftellen { font: 700 20px var(--font-kop); min-height: 1.3em; }
+.startscherm .knopje { font-size: 14px; }
+
+.venster { position: fixed; inset: 0; z-index: 50; background: rgba(5,6,9,.6); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.venster .doos { background: var(--paneel); border: 1px solid var(--lijn); border-radius: 16px; padding: 22px; width: min(760px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+.venster h2 { font: 700 22px var(--font-kop); margin: 0; }
+.venster h3 { font: 600 13px var(--font-tekst); text-transform: uppercase; letter-spacing: .08em; color: var(--zacht); margin: 0 0 8px; }
+.keuzerij { display: flex; gap: 8px; flex-wrap: wrap; }
+.keuzerij label { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--paneel-2); border: 1px solid var(--lijn); cursor: pointer; }
+.keuzerij label:has(input:checked) { border-color: var(--tekst); }
+.venster textarea { width: 100%; min-height: 60px; background: var(--paneel-2); border: 1px solid var(--lijn); border-radius: 10px; color: var(--tekst); font: inherit; padding: 10px; resize: vertical; box-sizing: border-box; }
+.venster .rij { display: flex; gap: 8px; flex-wrap: wrap; }
+.venster .dicht { margin-left: auto; }
+.hulp { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hulp th, .hulp td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--lijn); white-space: nowrap; }
+.hulp th { font: 700 14px var(--font-kop); }
+.tabelwrap { overflow-x: auto; }
+.voetnoot { font-size: 12.5px; color: var(--zacht); line-height: 1.5; margin: 0; }
+
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .app { height: auto; }
+  .midden { grid-template-columns: 1fr 1fr; }
+  .podium { grid-column: 1 / -1; order: -1; height: 75vh; }
+  .kolom { grid-template-rows: auto auto; }
+}
+@media (max-width: 560px) {
+  .midden { grid-template-columns: 1fr; }
+  .podium { height: auto; }
+  .poster-wrap { height: auto; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="app">
+  <header class="balk">
+    <h1>Samen ontwerpen</h1>
+    <div class="opdracht" id="opdracht"></div>
+    <span class="chip" id="leesbaar" title="Contrast tussen de tekst en de achtergrond"><i class="stip"></i><span></span></span>
+    <span class="chip" id="smaakchip"></span>
+    <span class="chip" id="midichip"><i class="stip"></i><span></span></span>
+    <button class="knopje" id="knopToetsen" type="button">Toetsen</button>
+    <button class="knopje" id="knopDocent" type="button">Docent</button>
+  </header>
+
+  <main class="midden">
+    <div class="kolom" id="kolomLinks"></div>
+    <div class="podium" id="podium">
+      <div class="poster-wrap" id="posterWrap">
+        <div class="poster" id="poster"></div>
+        <div class="laag-over" id="over"></div>
+      </div>
+      <div class="toasts" id="toasts"></div>
+      <div class="startscherm" id="startscherm" hidden></div>
+    </div>
+    <div class="kolom" id="kolomRechts"></div>
+  </main>
+
+  <footer class="versies" id="versies"></footer>
+</div>
+
+<div class="venster" id="docent" hidden>
+  <div class="doos" role="dialog" aria-label="Docentinstellingen">
+    <div class="rij"><h2>Docentinstellingen</h2><button class="knopje dicht" type="button" data-dicht>Sluiten</button></div>
+    <div>
+      <h3>Smaak</h3>
+      <div class="keuzerij">
+        <label><input type="radio" name="smaak" id="smaakVrij" value="vrij"> Iedereen kan alles</label>
+        <label><input type="radio" name="smaak" id="smaakRollen" value="rollen"> Rollen: de rechter draaiknop verschilt per rol</label>
+      </div>
+    </div>
+    <div>
+      <h3>Rollen verdelen</h3>
+      <div class="keuzerij">
+        <label><input type="radio" name="verdeel" id="verdeelZelf" value="zelf"> Leerlingen kiezen zelf</label>
+        <label><input type="radio" name="verdeel" id="verdeelPagina" value="pagina"> Pagina deelt uit en schuift door na elke ronde</label>
+      </div>
+    </div>
+    <div>
+      <h3>Opdrachtkaart</h3>
+      <textarea id="opdrachtVeld" aria-label="Opdracht"></textarea>
+    </div>
+    <div class="rij">
+      <button class="knopje" type="button" id="knopDoorschuiven">Rollen doorschuiven</button>
+      <button class="knopje" type="button" id="knopStart">Naar startscherm</button>
+      <button class="knopje" type="button" id="knopNieuw">Nieuwe poster</button>
+    </div>
+    <p class="voetnoot">Tip: zet de pagina schermvullend met Ctrl+Cmd+F. In Chrome vraagt de pagina één keer toestemming voor MIDI; dan worden aangesloten kastjes vanzelf herkend.</p>
+  </div>
+</div>
+
+<div class="venster" id="hulp" hidden>
+  <div class="doos" role="dialog" aria-label="Toetsen per speler">
+    <div class="rij"><h2>Toetsen per speler</h2><button class="knopje dicht" type="button" data-dicht>Sluiten</button></div>
+    <div class="tabelwrap"><table class="hulp" id="hulpTabel"></table></div>
+    <p class="voetnoot">Toets 1 kort indrukken is bevriezen. Toets 1 een seconde vasthouden is <b>ruilen</b>: als twee spelers dat tegelijk doen, wisselen ze van rol. Toets 2 is <b>Ik ben klaar</b>: als iedereen klaar is, wordt de versie opgeslagen. Duwen tegen de rand van de poster selecteert de achtergrond.</p>
+  </div>
+</div>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+'use strict';
+
+// ================= instellingen en vaste lijsten =================
+var SPELERS = [
+  { nr: 1, kleur: '#ff7a1a', kolom: 'links' },
+  { nr: 2, kleur: '#3b8bff', kolom: 'links' },
+  { nr: 3, kleur: '#21c06b', kolom: 'rechts' },
+  { nr: 4, kleur: '#b768ff', kolom: 'rechts' }
+];
+var ROLLEN = ['Kleur', 'Typografie', 'Layout', 'Beeld', 'Alles'];
+var CURSOR_OFFSET = { 1: [-16, -16], 2: [-16, 16], 3: [16, -16], 4: [16, 16] };
+var STARTPUNT = { 1: [18, 18], 2: [18, 82], 3: [82, 18], 4: [82, 82] };
+var RUIL_TIJD = 700;     // ms toets 1 vasthouden om te ruilen
+var SNELHEID = 38;       // procent van de poster per seconde bij verplaatsen
+
+var FONTS = [
+  { naam: 'Bebas Neue', css: "'Bebas Neue', Impact, sans-serif" },
+  { naam: 'Playfair', css: "'Playfair Display', Georgia, serif" },
+  { naam: 'Space Mono', css: "'Space Mono', Menlo, monospace" },
+  { naam: 'Pacifico', css: "'Pacifico', 'Brush Script MT', cursive" },
+  { naam: 'Archivo Black', css: "'Archivo Black', 'Arial Black', sans-serif" },
+  { naam: 'Caveat', css: "'Caveat', 'Marker Felt', cursive" },
+  { naam: 'Helvetica', css: "'Helvetica Neue', Helvetica, Arial, sans-serif" }
+];
+var VORMEN = ['cirkel', 'vierkant', 'driehoek', 'ster', 'zeshoek', 'ruit'];
+var CLIP = {
+  cirkel: 'circle(50% at 50% 50%)',
+  vierkant: 'none',
+  driehoek: 'polygon(50% 4%, 100% 96%, 0 96%)',
+  ster: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+  zeshoek: 'polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%)',
+  ruit: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)'
+};
+var PATRONEN = ['geen', 'strepen', 'stippen', 'ruitjes'];
+var PATROON_CSS = {
+  geen: 'none',
+  strepen: 'repeating-linear-gradient(45deg, rgba(0,0,0,.16) 0 7px, transparent 7px 16px)',
+  stippen: 'radial-gradient(rgba(0,0,0,.2) 24%, transparent 26%)',
+  ruitjes: 'linear-gradient(rgba(0,0,0,.13) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,.13) 2px, transparent 2px)'
+};
+var PATROON_MAAT = { geen: 'auto', strepen: 'auto', stippen: '16px 16px', ruitjes: '20px 20px' };
+
+function klem(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function rond(v) { return Math.round(v * 100) / 100; }
+function rondom(i, n) { return ((i % n) + n) % n; }
+
+// Eigenschappen onder de linker draaiknop. 'rol' bepaalt wie hem mag aanpassen in de rollensmaak.
+// GOK: deze verdeling over de rollen staat nog open in de brief.
+var EIGENSCHAPPEN = [
+  { key: 'tint', naam: 'Kleur', rol: 'Kleur', op: ['tekst', 'vorm', 'achtergrond'],
+    stap: function (e, d) { e.tint = rondom(e.tint + d * 12, 360); },
+    toon: function (e) { return { tekst: kleurNaam(e.tint), staal: hsl(e), meter: e.tint / 360 }; } },
+  { key: 'licht', naam: 'Licht of donker', rol: 'Kleur', op: ['tekst', 'vorm', 'achtergrond'],
+    stap: function (e, d) { e.licht = klem(e.licht + d * 4, 0, 100); },
+    toon: function (e) { return { tekst: e.licht + '%', staal: hsl(e), meter: e.licht / 100 }; } },
+  { key: 'verz', naam: 'Felheid', rol: 'Kleur', op: ['tekst', 'vorm', 'achtergrond'],
+    stap: function (e, d) { e.verz = klem(e.verz + d * 8, 0, 100); },
+    toon: function (e) { return { tekst: e.verz + '%', staal: hsl(e), meter: e.verz / 100 }; } },
+  { key: 'font', naam: 'Lettertype', rol: 'Typografie', op: ['tekst'],
+    stap: function (e, d) { e.font = rondom(e.font + d, FONTS.length); },
+    toon: function (e) { return { tekst: FONTS[e.font].naam, font: FONTS[e.font].css, meter: (e.font + 1) / FONTS.length }; } },
+  { key: 'grootte', naam: 'Lettergrootte', rol: 'Typografie', op: ['tekst'],
+    stap: function (e, d) { e.grootte = rond(klem(e.grootte + d * 0.5, 2, 34)); },
+    toon: function (e) { return { tekst: e.grootte.toFixed(1), meter: (e.grootte - 2) / 32 }; } },
+  { key: 'dikte', naam: 'Dikte', rol: 'Typografie', op: ['tekst'],
+    stap: function (e, d) { e.dikte = klem(e.dikte + d * 100, 300, 900); },
+    toon: function (e) { return { tekst: e.dikte >= 700 ? 'vet (' + e.dikte + ')' : e.dikte <= 300 ? 'dun (' + e.dikte + ')' : String(e.dikte), meter: (e.dikte - 300) / 600 }; } },
+  { key: 'spatie', naam: 'Letterafstand', rol: 'Typografie', op: ['tekst'],
+    stap: function (e, d) { e.spatie = rond(klem(e.spatie + d * 0.02, -0.06, 0.5)); },
+    toon: function (e) { return { tekst: e.spatie.toFixed(2), meter: (e.spatie + 0.06) / 0.56 }; } },
+  { key: 'kast', naam: 'Hoofdletters', rol: 'Typografie', op: ['tekst'],
+    stap: function (e) { e.kast = !e.kast; },
+    toon: function (e) { return { tekst: e.kast ? 'AAN' : 'uit', meter: e.kast ? 1 : 0 }; } },
+  { key: 'maat', naam: 'Grootte', rol: 'Layout', op: ['vorm'],
+    stap: function (e, d) { e.maat = klem(e.maat + d * 2, 4, 110); },
+    toon: function (e) { return { tekst: e.maat + '%', meter: e.maat / 110 }; } },
+  { key: 'draai', naam: 'Draaien', rol: 'Layout', op: ['tekst', 'vorm'],
+    stap: function (e, d) { e.draai = rondom(e.draai + d * 5 + 180, 360) - 180; },
+    toon: function (e) { return { tekst: e.draai + '°', meter: (e.draai + 180) / 360 }; } },
+  { key: 'laag', naam: 'Voor of achter', rol: 'Layout', op: ['tekst', 'vorm'],
+    stap: function (e, d) { verschuifLaag(e, d); },
+    toon: function (e) { var n = elementen().length; return { tekst: 'laag ' + e.z + ' van ' + n, meter: e.z / n }; } },
+  { key: 'vorm', naam: 'Vorm', rol: 'Beeld', op: ['vorm'],
+    stap: function (e, d) { e.vorm = rondom(e.vorm + d, VORMEN.length); },
+    toon: function (e) { return { tekst: VORMEN[e.vorm], meter: (e.vorm + 1) / VORMEN.length }; } },
+  { key: 'patroon', naam: 'Patroon', rol: 'Beeld', op: ['vorm', 'achtergrond'],
+    stap: function (e, d) { e.patroon = rondom(e.patroon + d, PATRONEN.length); },
+    toon: function (e) { return { tekst: PATRONEN[e.patroon], meter: e.patroon / (PATRONEN.length - 1) }; } },
+  { key: 'doorzicht', naam: 'Zichtbaarheid', rol: 'Beeld', op: ['tekst', 'vorm'],
+    stap: function (e, d) { e.doorzicht = klem(e.doorzicht + d * 5, 10, 100); },
+    toon: function (e) { return { tekst: e.doorzicht + '%', meter: e.doorzicht / 100 }; } },
+  { key: 'schaduw', naam: 'Schaduw', rol: 'Beeld', op: ['tekst', 'vorm'],
+    stap: function (e, d) { e.schaduw = klem(e.schaduw + d, 0, 5); },
+    toon: function (e) { return { tekst: e.schaduw === 0 ? 'geen' : 'niveau ' + e.schaduw, meter: e.schaduw / 5 }; } }
+];
+var EIG = {}; EIGENSCHAPPEN.forEach(function (p) { EIG[p.key] = p; });
+
+function kleurNaam(h) {
+  var namen = [[15, 'rood'], [40, 'oranje'], [65, 'geel'], [150, 'groen'], [190, 'turquoise'], [250, 'blauw'], [290, 'paars'], [335, 'roze'], [360, 'rood']];
+  for (var i = 0; i < namen.length; i++) if (h < namen[i][0]) return namen[i][1] + ' (' + h + '°)';
+  return h + '°';
+}
+function hsl(e) { return 'hsl(' + e.tint + ' ' + e.verz + '% ' + e.licht + '%)'; }
+
+// ================= beginposter =================
+function beginPoster() {
+  return {
+    achtergrond: { id: 'achtergrond', type: 'achtergrond', naam: 'Achtergrond', tint: 210, verz: 30, licht: 93, patroon: 0 },
+    els: [
+      { id: 'cirkel', type: 'vorm', naam: 'Grote vorm', x: 32, y: 56, maat: 50, vorm: 0, tint: 45, verz: 95, licht: 58 },
+      { id: 'blok', type: 'vorm', naam: 'Blok', x: 72, y: 50, maat: 30, vorm: 1, tint: 204, verz: 80, licht: 45, draai: 12 },
+      { id: 'drie', type: 'vorm', naam: 'Driehoek', x: 63, y: 72, maat: 24, vorm: 2, tint: 150, verz: 60, licht: 40 },
+      { id: 'ster', type: 'vorm', naam: 'Ster', x: 83, y: 12, maat: 16, vorm: 3, tint: 340, verz: 85, licht: 60, draai: -10 },
+      { id: 'titel', type: 'tekst', naam: 'Titel', tekst: 'Schoolfeest', x: 50, y: 22, font: 0, grootte: 21, dikte: 400, kast: true, tint: 350, verz: 75, licht: 42 },
+      { id: 'datum', type: 'tekst', naam: 'Datum', tekst: 'vrijdag 12 december · 20.00 uur', x: 50, y: 33, font: 2, grootte: 3.6, dikte: 700, tint: 220, verz: 25, licht: 20 },
+      { id: 'slogan', type: 'tekst', naam: 'Slogan', tekst: 'Iedereen welkom', x: 50, y: 87, font: 3, grootte: 8, dikte: 400, tint: 220, verz: 25, licht: 20 }
+    ].map(function (e, i) {
+      return Object.assign({ draai: 0, doorzicht: 100, schaduw: 0, patroon: 0, spatie: 0, kast: false, z: i + 1 }, e);
+    })
+  };
+}
+
+// ================= toestand =================
+var opslag = {
+  lees: function (k, std) { try { var v = localStorage.getItem('kastjes-' + k); return v == null ? std : JSON.parse(v); } catch (e) { return std; } },
+  schrijf: function (k, v) { try { localStorage.setItem('kastjes-' + k, JSON.stringify(v)); } catch (e) {} }
+};
+var inst = {
+  smaak: opslag.lees('smaak', 'rollen'),
+  verdeel: opslag.lees('verdeel', 'zelf'),
+  opdracht: opslag.lees('opdracht', 'Maak samen een poster voor het schoolfeest. Gebruik maximaal twee kleuren en één lettertype voor de lopende tekst.')
+};
+var poster = beginPoster();
+var versies = [];
+var fase = 'start';           // 'start' | 'spel'
+var aftelTimer = null, aftelTot = 0;
+
+var spelers = {};
+SPELERS.forEach(function (s) {
+  spelers[s.nr] = {
+    nr: s.nr, kleur: s.kleur, actief: false, rol: null, rolKeuze: 0, gekozen: false,
+    cursor: { el: 'achtergrond', x: STARTPUNT[s.nr][0], y: STARTPUNT[s.nr][1] },
+    eig: null, vast: null, klaar: false, t1Sinds: 0, wilRuilen: false, melding: ''
+  };
+});
+
+function elementen() { return poster.els; }
+function zoek(id) { if (id === 'achtergrond') return poster.achtergrond; return poster.els.find(function (e) { return e.id === id; }) || null; }
+function actieveSpelers() { return SPELERS.map(function (s) { return spelers[s.nr]; }).filter(function (p) { return p.actief; }); }
+function rolVan(p) { return inst.smaak === 'vrij' ? 'Alles' : (p.rol || 'Alles'); }
+function houder(id) { var h = actieveSpelers().find(function (p) { return p.vast === id; }); return h || null; }
+
+function verschuifLaag(e, d) {
+  var lijst = poster.els.slice().sort(function (a, b) { return a.z - b.z; });
+  var i = lijst.indexOf(e), j = klem(i + d, 0, lijst.length - 1);
+  if (i === j) return;
+  lijst.splice(i, 1); lijst.splice(j, 0, e);
+  lijst.forEach(function (x, k) { x.z = k + 1; });
+}
+
+function eigenschappenVoor(p, el) {
+  if (!el) return [];
+  var rol = rolVan(p);
+  return EIGENSCHAPPEN.filter(function (q) { return q.op.indexOf(el.type) >= 0 && (rol === 'Alles' || q.rol === rol); });
+}
+function huidigeEig(p, el) {
+  var lijst = eigenschappenVoor(p, el);
+  if (!lijst.length) return null;
+  return lijst.find(function (q) { return q.key === p.eig; }) || lijst[0];
+}
+
+// ================= poster tekenen =================
+var posterEl = document.getElementById('poster');
+var overEl = document.getElementById('over');
+var knopen = {};
+
+function tekenAchtergrond(doel, a) {
+  doel.style.backgroundColor = hsl(a);
+  var pat = PATRONEN[a.patroon];
+  doel.style.backgroundImage = PATROON_CSS[pat];
+  doel.style.backgroundSize = PATROON_MAAT[pat];
+}
+
+function stijl(e, n) {
+  n.style.left = e.x + '%';
+  n.style.top = e.y + '%';
+  n.style.zIndex = e.z;
+  n.style.opacity = e.doorzicht / 100;
+  n.style.transform = 'translate(-50%, -50%) rotate(' + e.draai + 'deg)';
+  var sch = e.schaduw ? 'drop-shadow(' + (e.schaduw * 0.35) + 'cqw ' + (e.schaduw * 0.45) + 'cqw ' + (e.schaduw * 0.5) + 'cqw rgba(0,0,0,.35))' : 'none';
+  n.style.filter = sch;
+  if (e.type === 'tekst') {
+    n.textContent = e.tekst;
+    n.style.color = hsl(e);
+    n.style.fontFamily = FONTS[e.font].css;
+    n.style.fontSize = e.grootte + 'cqw';
+    n.style.fontWeight = e.dikte;
+    n.style.letterSpacing = e.spatie + 'em';
+    n.style.textTransform = e.kast ? 'uppercase' : 'none';
+  } else {
+    n.style.width = e.maat + 'cqw';
+    n.style.height = e.maat + 'cqw';
+    var binnen = n.firstChild;
+    if (!binnen) { binnen = document.createElement('div'); binnen.className = 'vorm-in'; n.appendChild(binnen); }
+    var v = VORMEN[e.vorm];
+    binnen.style.backgroundColor = hsl(e);
+    var pat = PATRONEN[e.patroon];
+    binnen.style.backgroundImage = PATROON_CSS[pat];
+    binnen.style.backgroundSize = PATROON_MAAT[pat];
+    binnen.style.clipPath = CLIP[v];
+    binnen.style.borderRadius = v === 'vierkant' ? '6%' : '0';
+  }
+}
+
+function bouwPoster(doel, data, map) {
+  doel.innerHTML = '';
+  tekenAchtergrond(doel, data.achtergrond);
+  data.els.forEach(function (e) {
+    var n = document.createElement('div');
+    n.className = 'el';
+    stijl(e, n);
+    doel.appendChild(n);
+    if (map) map[e.id] = n;
+  });
+}
+
+function tekenPoster() {
+  knopen = {};
+  bouwPoster(posterEl, poster, knopen);
+}
+function tekenElement(e) {
+  if (e.type === 'achtergrond') tekenAchtergrond(posterEl, e);
+  else if (knopen[e.id]) stijl(e, knopen[e.id]);
+  if (e.key === undefined) poster.els.forEach(function (x) { if (knopen[x.id]) knopen[x.id].style.zIndex = x.z; });
+}
+
+// ================= overlay: cursors, omlijningen, sloten =================
+var overStukken = {};
+function stuk(sleutel, klasse) {
+  var n = overStukken[sleutel];
+  if (!n) { n = document.createElement('div'); n.className = klasse; overEl.appendChild(n); overStukken[sleutel] = n; }
+  n.dataset.gebruikt = '1';
+  return n;
+}
+var SLOT_SVG = '<svg viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="6" rx="1.2" fill="#111"/><path d="M3.8 5.5V4a2.2 2.2 0 0 1 4.4 0v1.5" stroke="#111" stroke-width="1.5" fill="none"/></svg>';
+function cursorSvg(kleur) {
+  return '<svg width="30" height="30" viewBox="0 0 30 30"><path d="M3 2 L3 24 L9 18.5 L13 27 L17 25.2 L13 17 L21 17 Z" fill="' + kleur + '" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>';
+}
+
+function tekenOverlay() {
+  Object.keys(overStukken).forEach(function (k) { overStukken[k].dataset.gebruikt = ''; });
+  var wrap = document.getElementById('posterWrap').getBoundingClientRect();
+  var basisX = 40, basisY = 40; // .laag-over steekt 40px uit
+  function rect(n) {
+    var r = n.getBoundingClientRect();
+    return { x: r.left - wrap.left + basisX, y: r.top - wrap.top + basisY, w: r.width, h: r.height };
+  }
+
+  // bevroren elementen: slotje in de kleur van wie bevroor
+  poster.els.concat([poster.achtergrond]).forEach(function (e) {
+    if (!e.bevroren) return;
+    var r = e.type === 'achtergrond' ? { x: basisX, y: basisY, w: wrap.width, h: wrap.height } : rect(knopen[e.id]);
+    var s = stuk('slot-' + e.id, 'slot');
+    s.style.setProperty('--kleur', spelers[e.bevroren].kleur);
+    s.innerHTML = SLOT_SVG;
+    s.style.left = (r.x + r.w - 12) + 'px';
+    s.style.top = (r.y - 10) + 'px';
+    s.title = 'Bevroren door speler ' + e.bevroren;
+  });
+
+  var perEl = {};
+  actieveSpelers().forEach(function (p) {
+    var id = p.cursor.el;
+    perEl[id] = (perEl[id] || 0) + 1;
+    var ring = perEl[id] - 1;
+    var el = zoek(id), r, punt;
+    if (id === 'achtergrond' || !el || !knopen[id]) {
+      var inz = 4 + ring * 6;
+      r = { x: basisX + inz, y: basisY + inz, w: wrap.width - inz * 2, h: wrap.height - inz * 2 };
+      punt = { x: basisX + p.cursor.x / 100 * wrap.width, y: basisY + p.cursor.y / 100 * wrap.height };
+    } else {
+      var b = rect(knopen[id]), m = 5 + ring * 6;
+      r = { x: b.x - m, y: b.y - m, w: b.w + m * 2, h: b.h + m * 2 };
+      punt = { x: b.x + b.w / 2 + CURSOR_OFFSET[p.nr][0], y: b.y + b.h / 2 + CURSOR_OFFSET[p.nr][1] };
+    }
+    var o = stuk('om-' + p.nr, 'omlijning');
+    o.style.setProperty('--kleur', p.kleur);
+    o.className = 'omlijning ' + (p.vast === id ? 'vast' : 'kijkt');
+    o.style.left = r.x + 'px'; o.style.top = r.y + 'px'; o.style.width = r.w + 'px'; o.style.height = r.h + 'px';
+    var label = p.vast === id ? 'Speler ' + p.nr + ' heeft vast' : '';
+    if (o.dataset.label !== label) { o.innerHTML = label ? '<span class="label">' + label + '</span>' : ''; o.dataset.label = label; }
+
+    var c = stuk('cur-' + p.nr, 'cursor');
+    if (!c.dataset.klaar) { c.innerHTML = cursorSvg(p.kleur) + '<span class="nr">' + p.nr + '</span>'; c.style.setProperty('--kleur', p.kleur); c.dataset.klaar = '1'; }
+    c.style.left = (punt.x - 3) + 'px';
+    c.style.top = (punt.y - 2) + 'px';
+    c.style.zIndex = 10 + p.nr;
+  });
+
+  Object.keys(overStukken).forEach(function (k) {
+    if (!overStukken[k].dataset.gebruikt) { overStukken[k].remove(); delete overStukken[k]; }
+  });
+}
+
+// ================= navigatie: springen naar het dichtstbijzijnde element =================
+function middelpunt(id) {
+  var w = posterEl.clientWidth, h = posterEl.clientHeight;
+  var n = knopen[id];
+  if (!n) return null;
+  var r = n.getBoundingClientRect(), pr = posterEl.getBoundingClientRect();
+  return { x: (r.left + r.width / 2 - pr.left) / w * 100, y: (r.top + r.height / 2 - pr.top) / h * 100 };
+}
+var RICHTING = { boven: [0, -1], onder: [0, 1], links: [-1, 0], rechts: [1, 0] };
+
+function spring(p, richting) {
+  var w = posterEl.clientWidth || 1, h = posterEl.clientHeight || 1;
+  var van = p.cursor.el === 'achtergrond' ? { x: p.cursor.x, y: p.cursor.y } : middelpunt(p.cursor.el) || { x: 50, y: 50 };
+  var d = RICHTING[richting], beste = null, besteScore = Infinity;
+  poster.els.forEach(function (e) {
+    if (e.id === p.cursor.el) return;
+    var m = middelpunt(e.id); if (!m) return;
+    var dx = (m.x - van.x) * w / 100, dy = (m.y - van.y) * h / 100;
+    var langs = dx * d[0] + dy * d[1];
+    var dwars = Math.abs(dx * d[1] - dy * d[0]);
+    if (langs <= 4) return;
+    if (dwars > langs * 2.2) return;           // niet te ver opzij
+    var score = langs + dwars * 2;
+    if (score < besteScore) { besteScore = score; beste = e; }
+  });
+  if (beste) {
+    p.cursor = { el: beste.id };
+  } else if (p.cursor.el !== 'achtergrond') {
+    // niets meer in die richting: tegen de rand, dus de achtergrond
+    var x = van.x, y = van.y;
+    if (richting === 'links') x = 4; if (richting === 'rechts') x = 96;
+    if (richting === 'boven') y = 3; if (richting === 'onder') y = 97;
+    p.cursor = { el: 'achtergrond', x: klem(x, 4, 96), y: klem(y, 3, 97) };
+  } else {
+    // al op de achtergrond: cursor schuift langs de rand
+    p.cursor.x = klem(p.cursor.x + d[0] * 12, 4, 96);
+    p.cursor.y = klem(p.cursor.y + d[1] * 12, 3, 97);
+  }
+}
+
+// ================= gebeurtenissen van kastjes of toetsenbord =================
+Kastjes.on(function (e) {
+  var p = spelers[e.speler];
+  if (!p) return;
+  if (!p.actief) {
+    // elke handeling van een nieuwe speler betekent: ik doe mee
+    if (e.type === 'toets' || e.type === 'joystick-druk' || e.type === 'knop-druk') { if (!e.ingedrukt) return; }
+    doeMee(p);
+    return;
+  }
+  if (fase === 'start') return startGebeurtenis(p, e);
+  spelGebeurtenis(p, e);
+});
+
+function doeMee(p) {
+  p.actief = true; p.klaar = false; p.gekozen = false;
+  p.cursor = { el: 'achtergrond', x: STARTPUNT[p.nr][0], y: STARTPUNT[p.nr][1] };
+  Kastjes.led(p.nr, p.kleur);
+  if (fase === 'start') {
+    if (inst.smaak === 'vrij') { p.rol = 'Alles'; p.gekozen = true; }
+    else if (inst.verdeel === 'pagina') { p.rol = eersteVrijeRol(p); p.gekozen = true; }
+    else { p.rolKeuze = ROLLEN.indexOf(eersteVrijeRol(p)); }
+  } else {
+    p.rol = inst.smaak === 'vrij' ? 'Alles' : eersteVrijeRol(p);
+    p.gekozen = true;
+    toast('Speler ' + p.nr + ' doet mee' + (inst.smaak === 'rollen' ? ' als ' + p.rol : ''), p);
+  }
+  alles();
+}
+function verlaat(p) {
+  if (p.vast) p.vast = null;
+  poster.els.concat([poster.achtergrond]).forEach(function (e) { if (e.bevroren === p.nr) e.bevroren = 0; });
+  p.actief = false; p.rol = null; p.gekozen = false; p.klaar = false; p.wilRuilen = false;
+  Kastjes.led(p.nr, null);
+  alles();
+}
+function bezet(rol, behalve) {
+  if (rol === 'Alles') return false;
+  return actieveSpelers().some(function (q) { return q !== behalve && q.gekozen && q.rol === rol; });
+}
+function eersteVrijeRol(p) {
+  for (var i = 0; i < 4; i++) if (!bezet(ROLLEN[i], p)) return ROLLEN[i];
+  return 'Alles';
+}
+
+// ---------- startscherm ----------
+function startGebeurtenis(p, e) {
+  var kiezen = inst.smaak === 'rollen' && inst.verdeel === 'zelf';
+  if (e.type === 'knop' && e.welke === 'rechts' && kiezen && !p.gekozen) {
+    var i = p.rolKeuze;
+    for (var k = 0; k < ROLLEN.length; k++) {
+      i = rondom(i + e.stap, ROLLEN.length);
+      if (!bezet(ROLLEN[i], p)) break;
+    }
+    p.rolKeuze = i;
+  } else if ((e.type === 'knop-druk' || e.type === 'joystick-druk') && e.ingedrukt && kiezen) {
+    if (p.gekozen) { p.gekozen = false; p.rol = null; }
+    else if (!bezet(ROLLEN[p.rolKeuze], p)) { p.gekozen = true; p.rol = ROLLEN[p.rolKeuze]; }
+  } else return;
+  alles();
+}
+
+function controleerStart() {
+  if (fase !== 'start') return;
+  var a = actieveSpelers();
+  var iedereen = a.length > 0 && a.every(function (p) { return p.gekozen; });
+  if (iedereen && !aftelTimer) {
+    aftelTot = Date.now() + 3000;
+    aftelTimer = setInterval(function () {
+      if (Date.now() >= aftelTot) { stopAftellen(); begin(); } else tekenStart();
+    }, 200);
+  } else if (!iedereen && aftelTimer) stopAftellen();
+}
+function stopAftellen() { clearInterval(aftelTimer); aftelTimer = null; }
+function begin() {
+  stopAftellen();
+  fase = 'spel';
+  actieveSpelers().forEach(function (p) { if (!p.rol) p.rol = 'Alles'; });
+  toast('Aan de slag!');
+  alles();
+}
+function naarStart() {
+  stopAftellen();
+  fase = 'start';
+  actieveSpelers().forEach(function (p) {
+    p.vast = null; p.klaar = false;
+    if (inst.smaak === 'rollen' && inst.verdeel === 'zelf') { p.gekozen = false; p.rolKeuze = Math.max(0, ROLLEN.indexOf(p.rol)); p.rol = null; }
+    else if (inst.smaak === 'vrij') { p.rol = 'Alles'; p.gekozen = true; }
+    else { p.gekozen = true; }
+  });
+  if (inst.smaak === 'rollen' && inst.verdeel === 'pagina') verdeelOpnieuw();
+  alles();
+}
+function verdeelOpnieuw() {
+  var a = actieveSpelers();
+  a.forEach(function (p) { p.gekozen = false; p.rol = null; });
+  a.forEach(function (p) { p.rol = eersteVrijeRol(p); p.gekozen = true; });
+}
+
+// ---------- tijdens het ontwerpen ----------
+function spelGebeurtenis(p, e) {
+  var el = zoek(p.cursor.el);
+  if (e.type === 'joystick') {
+    if (p.vast) return;               // vasthouden = verplaatsen, dat gebeurt in de lus
+    spring(p, e.richting);
+    p.melding = '';
+    tekenPaneel(p);
+    return;
+  }
+  if (e.type === 'joystick-druk' && e.ingedrukt) {
+    if (p.vast) { p.vast = null; p.melding = ''; }
+    else if (!el || el.type === 'achtergrond') { p.melding = 'Je cursor staat op de achtergrond. Spring eerst naar een element.'; toast('Speler ' + p.nr + ': ' + p.melding, p); }
+    else if (el.bevroren) { p.melding = 'Bevroren door speler ' + el.bevroren + '.'; weiger(p); }
+    else if (houder(el.id)) { var h = houder(el.id); p.melding = 'Vast is vast: speler ' + h.nr + ' heeft dit. Vraag het even.'; weiger(p); }
+    else { p.vast = el.id; p.melding = ''; }
+    tekenPaneel(p);
+    return;
+  }
+  if (e.type === 'knop' && e.welke === 'links') {
+    var lijst = eigenschappenVoor(p, el);
+    if (!lijst.length) return;
+    var nu = huidigeEig(p, el), i = lijst.indexOf(nu);
+    p.eig = lijst[rondom(i + e.stap, lijst.length)].key;
+    tekenPaneel(p);
+    return;
+  }
+  if (e.type === 'knop' && e.welke === 'rechts') {
+    var q = huidigeEig(p, el);
+    if (!q) { p.melding = rolVan(p) === 'Alles' ? '' : 'Als ' + rolVan(p) + ' kun je hier niets aanpassen.'; tekenPaneel(p); return; }
+    if (el.bevroren) { p.melding = 'Bevroren door speler ' + el.bevroren + '.'; weiger(p); tekenPaneel(p); return; }
+    var h2 = houder(el.id);
+    if (h2 && h2 !== p) { p.melding = 'Vast is vast: speler ' + h2.nr + ' heeft dit.'; weiger(p); tekenPaneel(p); return; }
+    q.stap(el, e.stap);
+    p.melding = '';
+    if (q.key === 'laag') poster.els.forEach(function (x) { if (knopen[x.id]) knopen[x.id].style.zIndex = x.z; });
+    tekenElement(el);
+    tekenPaneel(p);
+    // andere spelers op hetzelfde element zien de waarde meteen mee
+    actieveSpelers().forEach(function (o) { if (o !== p && o.cursor.el === el.id) tekenPaneel(o); });
+    tekenLeesbaar();
+    return;
+  }
+  if (e.type === 'toets' && e.nr === 1) {
+    if (e.ingedrukt) { p.t1Sinds = performance.now(); return; }
+    var kort = !p.wilRuilen && performance.now() - p.t1Sinds < RUIL_TIJD;
+    p.t1Sinds = 0;
+    if (p.wilRuilen) { p.wilRuilen = false; tekenPaneel(p); return; }
+    if (kort) bevries(p, el);
+    return;
+  }
+  if (e.type === 'toets' && e.nr === 2 && e.ingedrukt) {
+    p.klaar = !p.klaar;
+    tekenPaneel(p);
+    controleerKlaar();
+  }
+}
+
+function weiger(p) {
+  // de reden ook groot op het scherm, zodat je ziet waarom het niet lukt
+  if (p.melding) toast('Speler ' + p.nr + ': ' + p.melding, p);
+  var n = panelen[p.nr];
+  n.classList.remove('flits'); void n.offsetWidth; n.classList.add('flits');
+}
+
+function bevries(p, el) {
+  if (!el) return;
+  if (el.bevroren === p.nr) { el.bevroren = 0; p.melding = ''; toast('Speler ' + p.nr + ' ontdooit: ' + el.naam.toLowerCase(), p); }
+  else if (el.bevroren) { p.melding = 'Alleen speler ' + el.bevroren + ' kan dit ontdooien.'; weiger(p); }
+  else {
+    var h = houder(el.id);
+    if (h && h !== p) { p.melding = 'Speler ' + h.nr + ' heeft dit vast.'; weiger(p); tekenPaneel(p); return; }
+    if (p.vast === el.id) p.vast = null;
+    el.bevroren = p.nr; p.melding = '';
+    toast('Speler ' + p.nr + ' bevriest: ' + el.naam.toLowerCase(), p);
+  }
+  tekenPaneel(p);
+}
+
+function controleerRuilen(nu) {
+  if (fase !== 'spel' || inst.smaak !== 'rollen') return;
+  actieveSpelers().forEach(function (p) {
+    if (p.t1Sinds && !p.wilRuilen && nu - p.t1Sinds >= RUIL_TIJD) { p.wilRuilen = true; tekenPaneel(p); }
+  });
+  var wil = actieveSpelers().filter(function (p) { return p.wilRuilen; });
+  if (wil.length >= 2) {
+    var a = wil[0], b = wil[1], r = a.rol;
+    a.rol = b.rol; b.rol = r;
+    a.wilRuilen = b.wilRuilen = false; a.t1Sinds = b.t1Sinds = 0;
+    toast('Speler ' + a.nr + ' en speler ' + b.nr + ' hebben geruild');
+    tekenPaneel(a); tekenPaneel(b);
+  }
+}
+
+function controleerKlaar() {
+  var a = actieveSpelers();
+  if (!a.length || !a.every(function (p) { return p.klaar; })) return;
+  versies.push({ nr: versies.length + 1, data: JSON.parse(JSON.stringify(poster)) });
+  a.forEach(function (p) { p.klaar = false; });
+  toast('Iedereen klaar: versie ' + versies.length + ' is opgeslagen');
+  if (inst.smaak === 'rollen' && inst.verdeel === 'pagina') { schuifDoor(); toast('De rollen schuiven door'); }
+  alles();
+}
+
+function schuifDoor() {
+  var a = actieveSpelers();
+  if (a.length < 2) return;
+  var rollen = a.map(function (p) { return p.rol; });
+  a.forEach(function (p, i) { p.rol = rollen[rondom(i - 1, a.length)]; });
+}
+
+// ================= lus: vloeiend verplaatsen en ruilen =================
+var vorige = performance.now();
+function lus(nu) {
+  var dt = Math.min(0.05, (nu - vorige) / 1000); vorige = nu;
+  if (fase === 'spel') {
+    actieveSpelers().forEach(function (p) {
+      if (!p.vast) return;
+      var el = zoek(p.vast); if (!el) return;
+      var v = Kastjes.joystick(p.nr);
+      if (!v.x && !v.y) return;
+      el.x = rond(klem(el.x + v.x * SNELHEID * dt, 0, 100));
+      el.y = rond(klem(el.y + v.y * SNELHEID * dt * 0.71, 0, 100));
+      stijl(el, knopen[el.id]);
+    });
+    controleerRuilen(nu);
+  }
+  tekenOverlay();
+  requestAnimationFrame(lus);
+}
+
+// ================= spelershoeken =================
+var panelen = {};
+function bouwPanelen() {
+  SPELERS.forEach(function (s) {
+    var n = document.createElement('section');
+    n.className = 'speler';
+    n.style.setProperty('--kleur', s.kleur);
+    document.getElementById(s.kolom === 'links' ? 'kolomLinks' : 'kolomRechts').appendChild(n);
+    panelen[s.nr] = n;
+  });
+}
+
+function toetsLabel(code) {
+  var m = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Enter: 'Enter', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Backslash: '\\', Period: '.', Slash: '/', Minus: '-', Equal: '=' };
+  if (m[code]) return m[code];
+  return code.replace('Key', '').replace('Digit', '');
+}
+function kbd(code) { return '<kbd>' + esc(toetsLabel(code)) + '</kbd>'; }
+function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+function ledsHtml(p) {
+  var kleur = p.actief ? p.kleur : null, h = '';
+  for (var i = 0; i < 8; i++) h += '<i' + (kleur ? ' style="background:' + kleur + ';box-shadow:0 0 8px ' + kleur + '"' : '') + '></i>';
+  return '<div class="leds" title="Ledstrip van het kastje">' + h + '</div>';
+}
+
+function tekenPaneel(p) {
+  var n = panelen[p.nr], t = Kastjes.toetsen[p.nr];
+  n.classList.toggle('actief', p.actief);
+  n.classList.toggle('inactief', !p.actief);
+  n.classList.toggle('ruilt', !!p.wilRuilen);
+  if (!p.actief) {
+    n.innerHTML =
+      '<div class="kop"><div class="badge">' + p.nr + '</div><div><div class="naam">Speler ' + p.nr + '</div><div class="rol">doet nog niet mee</div></div></div>' +
+      ledsHtml(p) +
+      '<div class="uitleg">Druk op een toets van jouw kastje om mee te doen.<br>Toetsenbord: joystick ' + kbd(t.boven) + kbd(t.links) + kbd(t.onder) + kbd(t.rechts) +
+      ', oppakken ' + kbd(t.druk) + '<br>draaiknop links ' + kbd(t.knopLinksMin) + kbd(t.knopLinksPlus) + ', rechts ' + kbd(t.knopRechtsMin) + kbd(t.knopRechtsPlus) +
+      '<br>bevriezen ' + kbd(t.toets1) + ', klaar ' + kbd(t.toets2) + '</div>';
+    return;
+  }
+  var rol = fase === 'start' ? (p.gekozen ? p.rol : 'kiest nog') : rolVan(p);
+  var kop = '<div class="kop"><div class="badge">' + p.nr + '</div><div><div class="naam">Speler ' + p.nr + '</div>' +
+    '<div class="rol">Rol: <b>' + esc(rol) + '</b></div></div>' +
+    '<button class="weg" type="button" data-weg="' + p.nr + '" title="Speler ' + p.nr + ' laten stoppen" aria-label="Speler ' + p.nr + ' laten stoppen">×</button></div>';
+
+  if (fase === 'start') {
+    n.innerHTML = kop + ledsHtml(p) + '<div class="uitleg">' +
+      (inst.smaak === 'rollen' && inst.verdeel === 'zelf'
+        ? 'Draai aan de <b>rechter draaiknop</b> (' + kbd(t.knopRechtsMin) + kbd(t.knopRechtsPlus) + ') om een rol te zoeken. Druk op de knop (' + kbd(t.knopRechtsDruk) + ' of ' + kbd(t.druk) + ') om te kiezen.'
+        : 'Je doet mee. Wacht tot iedereen er is.') + '</div>';
+    return;
+  }
+
+  var el = zoek(p.cursor.el);
+  var lijst = eigenschappenVoor(p, el), q = huidigeEig(p, el);
+  var waaropTekst = p.vast ? 'Heeft vast: <b>' + esc(el.naam) + '</b>' : 'Cursor op: <b>' + esc(el ? el.naam : '-') + '</b>';
+  if (el && el.bevroren) waaropTekst += ' (bevroren door ' + el.bevroren + ')';
+
+  var wiel = '', waarde = '';
+  if (q) {
+    var i = lijst.indexOf(q), voor = lijst.length > 1 ? lijst[rondom(i - 1, lijst.length)] : null, na = lijst.length > 2 ? lijst[rondom(i + 1, lijst.length)] : null;
+    wiel = '<div class="wiel"><span>' + (voor ? esc(voor.naam) : '&nbsp;') + '</span><span class="nu">' + esc(q.naam) + '</span><span>' + (na ? esc(na.naam) : '&nbsp;') + '</span></div>';
+    var w = q.toon(el);
+    waarde = '<div class="waarde"' + (w.font ? ' style="font-family:' + esc(w.font) + '"' : '') + '>' +
+      (w.staal ? '<span class="staal" style="background:' + w.staal + '"></span>' : '') + '<span>' + esc(w.tekst) + '</span></div>' +
+      '<div class="meter"><i style="width:' + Math.round(klem(w.meter, 0, 1) * 100) + '%"></i></div>';
+  } else {
+    wiel = '<div class="wiel"><span>&nbsp;</span><span class="nu">niets</span><span>&nbsp;</span></div>';
+    waarde = '<div class="melding">' + (rolVan(p) === 'Alles' ? '' : 'Als ' + esc(rolVan(p)) + ' pas je hier niets aan. Zoek iets anders.') + '</div>';
+  }
+
+  var status = '<div class="status">' +
+    (p.klaar ? '<span class="chip aan">Klaar</span>' : '<span class="chip">Nog bezig</span>') +
+    (p.wilRuilen ? '<span class="chip aan">Wil ruilen</span>' : '') +
+    (p.vast ? '<span class="chip aan">Vast</span>' : '') +
+    '</div>';
+
+  n.innerHTML = kop + ledsHtml(p) +
+    '<div class="waarop">' + waaropTekst + '</div>' +
+    '<div class="draai"><div class="vak"><div class="wat">Knop links: wat</div>' + wiel + '</div>' +
+    '<div class="vak"><div class="wat">Knop rechts: waarde</div>' + waarde + '</div></div>' +
+    (p.melding ? '<div class="melding">' + esc(p.melding) + '</div>' : '') +
+    status +
+    '<div class="spiek">Toetsenbord: ' + kbd(t.boven) + kbd(t.links) + kbd(t.onder) + kbd(t.rechts) + ' springen, ' + kbd(t.druk) + ' pakken, ' +
+    kbd(t.knopLinksMin) + kbd(t.knopLinksPlus) + ' wat, ' + kbd(t.knopRechtsMin) + kbd(t.knopRechtsPlus) + ' waarde, ' +
+    kbd(t.toets1) + ' bevriezen, ' + kbd(t.toets2) + ' klaar</div>';
+}
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-weg]');
+  if (b) verlaat(spelers[+b.dataset.weg]);
+});
+
+// ================= startscherm, versies, balk =================
+function tekenStart() {
+  var s = document.getElementById('startscherm');
+  s.hidden = fase !== 'start';
+  if (fase !== 'start') return;
+  var kiezen = inst.smaak === 'rollen' && inst.verdeel === 'zelf';
+  var kaarten = SPELERS.map(function (sp) {
+    var p = spelers[sp.nr], r, klein;
+    if (!p.actief) { r = '...'; klein = 'druk op een toets'; }
+    else if (p.gekozen) { r = p.rol; klein = kiezen ? 'gekozen' : 'doet mee'; }
+    else { r = ROLLEN[p.rolKeuze]; klein = 'draai en druk om te kiezen'; }
+    return '<div class="keuze' + (p.actief ? ' mee' : '') + (p.gekozen ? ' gekozen' : '') + '" style="--kleur:' + sp.kleur + '">' +
+      '<div class="wie">Speler ' + sp.nr + '</div><div class="r">' + esc(r) + '</div><div class="klein">' + klein + '</div></div>';
+  }).join('');
+  var a = actieveSpelers();
+  var tel = aftelTimer ? 'We beginnen over ' + Math.max(1, Math.ceil((aftelTot - Date.now()) / 1000)) + '...' :
+    (a.length ? (a.every(function (p) { return p.gekozen; }) ? '' : 'Wachten tot iedereen een rol heeft') : 'Wachten op spelers');
+  s.innerHTML = '<h2>' + (kiezen ? 'Kies je rol' : 'Wie doet er mee?') + '</h2>' +
+    '<p>' + (kiezen ? 'Kleur, Typografie, Layout en Beeld zijn er één keer. Alles kan iedereen kiezen.' : 'Druk op een toets van je kastje om mee te doen. Met twee, drie of vier spelers.') + '</p>' +
+    '<div class="keuzes">' + kaarten + '</div>' +
+    '<div class="aftellen">' + tel + '</div>' +
+    '<button class="knopje" type="button" id="knopNu">Nu beginnen</button>';
+}
+
+function tekenVersies() {
+  var v = document.getElementById('versies');
+  v.innerHTML = '<span class="titel">Versies</span>';
+  if (!versies.length) { v.insertAdjacentHTML('beforeend', '<span class="leeg">Nog geen versies. Als iedereen op <b>Ik ben klaar</b> drukt, komt hier een versie bij.</span>'); return; }
+  versies.forEach(function (ver) {
+    var b = document.createElement('button');
+    b.className = 'versie'; b.type = 'button'; b.title = 'Versie ' + ver.nr + ' terugzetten';
+    var m = document.createElement('div'); m.className = 'mini';
+    bouwPoster(m, ver.data);
+    b.appendChild(m);
+    b.insertAdjacentHTML('beforeend', '<span>' + ver.nr + '</span>');
+    b.addEventListener('click', function () {
+      poster = JSON.parse(JSON.stringify(ver.data));
+      actieveSpelers().forEach(function (p) { p.vast = null; if (!zoek(p.cursor.el)) p.cursor = { el: 'achtergrond', x: 50, y: 50 }; });
+      tekenPoster(); alles();
+      toast('Versie ' + ver.nr + ' staat weer op het scherm');
+    });
+    v.appendChild(b);
+  });
+}
+
+// contrastmeter: slechtste contrast tussen een tekst en de achtergrond
+function hslRgb(h, s, l) {
+  s /= 100; l /= 100;
+  var a = s * Math.min(l, 1 - l);
+  function f(n) { var k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1))); }
+  return [f(0), f(8), f(4)];
+}
+function lum(c) { var g = c.map(function (v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; }
+function tekenLeesbaar() {
+  var a = poster.achtergrond, bg = hslRgb(a.tint, a.verz, a.licht), slechtst = null;
+  poster.els.forEach(function (e) {
+    if (e.type !== 'tekst') return;
+    var t = hslRgb(e.tint, e.verz, e.licht), o = e.doorzicht / 100;
+    var mix = t.map(function (v, i) { return v * o + bg[i] * (1 - o); });
+    var l1 = lum(mix), l2 = lum(bg);
+    var r = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    if (!slechtst || r < slechtst.r) slechtst = { r: r, naam: e.naam };
+  });
+  var chip = document.getElementById('leesbaar');
+  if (!slechtst) { chip.hidden = true; return; }
+  chip.hidden = false;
+  var kleur = slechtst.r >= 4.5 ? 'var(--goed)' : slechtst.r >= 3 ? 'var(--matig)' : 'var(--slecht)';
+  var woord = slechtst.r >= 4.5 ? 'goed leesbaar' : slechtst.r >= 3 ? 'matig leesbaar' : 'slecht leesbaar';
+  chip.querySelector('.stip').style.background = kleur;
+  chip.querySelector('span').textContent = 'Leesbaarheid ' + slechtst.r.toFixed(1) + ' : 1, ' + woord + (slechtst.r < 4.5 ? ' (' + slechtst.naam.toLowerCase() + ')' : '');
+}
+
+function tekenBalk() {
+  document.getElementById('opdracht').innerHTML = '<b>Opdracht:</b> ' + esc(inst.opdracht);
+  document.getElementById('smaakchip').textContent = inst.smaak === 'vrij' ? 'Iedereen kan alles' : 'Rollen' + (inst.verdeel === 'pagina' ? ', pagina deelt uit' : '');
+}
+Kastjes.onStatus(function (s) {
+  var chip = document.getElementById('midichip');
+  var tekst, kleur;
+  if (s.midi === 'aan') { tekst = s.kastjes ? 'Kastjes: ' + s.kastjes + ' via MIDI' : 'MIDI aan, geen kastjes'; kleur = s.kastjes ? 'var(--goed)' : 'var(--matig)'; }
+  else if (s.midi === 'geblokkeerd') { tekst = 'Toetsenbord (MIDI geblokkeerd)'; kleur = 'var(--matig)'; }
+  else { tekst = 'Toetsenbord (geen MIDI in deze browser)'; kleur = 'var(--matig)'; }
+  chip.querySelector('span').textContent = tekst;
+  chip.querySelector('.stip').style.background = kleur;
+});
+
+var toastsEl = document.getElementById('toasts');
+function toast(tekst, p) {
+  var t = document.createElement('div');
+  t.className = 'toast';
+  if (p) t.style.setProperty('--kleur', p.kleur);
+  t.textContent = tekst;
+  toastsEl.appendChild(t);
+  while (toastsEl.children.length > 3) toastsEl.firstChild.remove();
+  setTimeout(function () { t.remove(); }, 2600);
+}
+
+function alles() {
+  // op het startscherm nooit een bezette rol voorselecteren
+  if (fase === 'start') actieveSpelers().forEach(function (p) {
+    if (p.gekozen) return;
+    for (var k = 0; k < ROLLEN.length && bezet(ROLLEN[p.rolKeuze], p); k++) p.rolKeuze = rondom(p.rolKeuze + 1, ROLLEN.length);
+  });
+  SPELERS.forEach(function (s) { tekenPaneel(spelers[s.nr]); });
+  tekenStart();
+  tekenVersies();
+  tekenBalk();
+  tekenLeesbaar();
+  controleerStart();
+}
+
+// ================= vensters =================
+function open(id) { document.getElementById(id).hidden = false; }
+function dicht(id) { document.getElementById(id).hidden = true; }
+document.querySelectorAll('[data-dicht]').forEach(function (b) { b.addEventListener('click', function () { b.closest('.venster').hidden = true; }); });
+document.querySelectorAll('.venster').forEach(function (v) { v.addEventListener('click', function (e) { if (e.target === v) v.hidden = true; }); });
+window.addEventListener('keydown', function (e) { if (e.key === 'Escape') { dicht('docent'); dicht('hulp'); } });
+document.getElementById('knopToetsen').addEventListener('click', function () { open('hulp'); });
+document.getElementById('knopDocent').addEventListener('click', function () {
+  document.getElementById(inst.smaak === 'vrij' ? 'smaakVrij' : 'smaakRollen').checked = true;
+  document.getElementById(inst.verdeel === 'pagina' ? 'verdeelPagina' : 'verdeelZelf').checked = true;
+  document.getElementById('opdrachtVeld').value = inst.opdracht;
+  open('docent');
+});
+document.querySelectorAll('input[name="smaak"]').forEach(function (r) { r.addEventListener('change', function () { inst.smaak = r.value; opslag.schrijf('smaak', r.value); naarStart(); }); });
+document.querySelectorAll('input[name="verdeel"]').forEach(function (r) { r.addEventListener('change', function () { inst.verdeel = r.value; opslag.schrijf('verdeel', r.value); naarStart(); }); });
+document.getElementById('opdrachtVeld').addEventListener('input', function (e) { inst.opdracht = e.target.value; opslag.schrijf('opdracht', inst.opdracht); tekenBalk(); });
+document.getElementById('knopDoorschuiven').addEventListener('click', function () { schuifDoor(); toast('De rollen zijn doorgeschoven'); alles(); });
+document.getElementById('knopStart').addEventListener('click', function () { dicht('docent'); naarStart(); });
+document.getElementById('knopNieuw').addEventListener('click', function () {
+  poster = beginPoster(); versies = [];
+  actieveSpelers().forEach(function (p) { p.vast = null; p.cursor = { el: 'achtergrond', x: STARTPUNT[p.nr][0], y: STARTPUNT[p.nr][1] }; });
+  tekenPoster(); dicht('docent'); alles();
+});
+document.getElementById('startscherm').addEventListener('click', function (e) { if (e.target.id === 'knopNu') begin(); });
+
+function bouwHulp() {
+  var rijen = [
+    ['Joystick duwen', function (t) { return kbd(t.boven) + kbd(t.links) + kbd(t.onder) + kbd(t.rechts); }],
+    ['Joystick indrukken (pakken/loslaten)', function (t) { return kbd(t.druk); }],
+    ['Draaiknop links (wat)', function (t) { return kbd(t.knopLinksMin) + ' ' + kbd(t.knopLinksPlus); }],
+    ['Draaiknop rechts (waarde)', function (t) { return kbd(t.knopRechtsMin) + ' ' + kbd(t.knopRechtsPlus); }],
+    ['Draaiknop rechts indrukken', function (t) { return kbd(t.knopRechtsDruk); }],
+    ['Toets 1 (bevriezen, vasthouden = ruilen)', function (t) { return kbd(t.toets1); }],
+    ['Toets 2 (ik ben klaar)', function (t) { return kbd(t.toets2); }]
+  ];
+  var h = '<tr><th></th>' + SPELERS.map(function (s) { return '<th style="color:' + s.kleur + '">Speler ' + s.nr + '</th>'; }).join('') + '</tr>';
+  rijen.forEach(function (r) {
+    h += '<tr><td>' + r[0] + '</td>' + SPELERS.map(function (s) { return '<td>' + r[1](Kastjes.toetsen[s.nr]) + '</td>'; }).join('') + '</tr>';
+  });
+  document.getElementById('hulpTabel').innerHTML = h;
+}
+
+// ================= start =================
+bouwPanelen();
+bouwHulp();
+tekenPoster();
+alles();
+requestAnimationFrame(lus);
+window.addEventListener('resize', tekenOverlay);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(tekenOverlay);
+})();
+</script>
