@@ -363,7 +363,7 @@ var VORM = {
 };
 function tekenAsset(c, a, w, h) {
   var im = IMG[a.id];
-  if (im) { c.drawImage(im, -w / 2, -h / 2, w, h); return; }
+  if (im) { var k = Math.min(w / im.naturalWidth, h / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k; c.drawImage(im, -iw / 2, -ih / 2, iw, ih); return; } // passend binnen de echte maat, zonder vervormen
   (VORM[a.vorm] || VORM.tegels)(c, w, h, rnd(a.id));
 }
 

@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemeenteraad</title>
+<link rel="stylesheet" href="../te-glas.css">
+<style>
+/* Gemeenteraad: krant boven, gedeelde begroting in het midden, dorpsmeters rechts, vier raadsleden in de hoeken. */
+.pagina{position:relative;z-index:1;height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:14px;padding:18px 270px}
+.krant{padding:14px 22px;display:grid;grid-template-columns:1fr auto;gap:6px 18px;align-items:end}
+.krant .kopregel{font:800 clamp(22px,2.3vw,36px)/1.08 var(--f);letter-spacing:-.025em}
+.krant .vraag{grid-column:1;font:500 15px/1.35 var(--f);color:var(--ink-2)}
+.krant .rechts{grid-column:2;grid-row:1 / span 3;display:grid;gap:8px;justify-items:end}
+.fase{display:flex;gap:4px}
+.fase span{font:600 10px var(--m);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:6px;background:rgba(0,0,0,.06);color:var(--muted)}
+.fase span.nu{background:#111;color:#fff}
+.klok{font:700 34px/1 var(--m);letter-spacing:-.02em;cursor:pointer;user-select:none}
+.klok.op{color:var(--oranje);animation:knip 1s steps(2) infinite}
+.klok.stil{opacity:.4}
+@keyframes knip{50%{opacity:.25}}
+.midden{display:grid;grid-template-columns:1fr 250px;gap:14px;min-height:0}
+.begroting{padding:16px 18px 14px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
+.bkop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rest{font:700 13px var(--m);padding:6px 10px;border-radius:999px;background:#111;color:#fff}
+.rest.nul{background:#118a49}.rest.min{background:#d12f2f}
+.posten{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;min-height:0}
+.post{position:relative;display:grid;grid-template-rows:1fr auto auto;gap:6px;min-height:0;padding:10px;border-radius:14px;background:rgba(255,255,255,.35);border:2px solid transparent;transition:border-color .3s}
+.post .koker{position:relative;border-radius:10px;background:repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 1px,transparent 1px 25%);overflow:hidden}
+.post .vul{position:absolute;left:0;right:0;bottom:0;background:#111;border-radius:10px 10px 0 0;transition:height .18s}
+.post .ijk{position:absolute;left:-2px;right:-2px;height:0;border-top:2px dashed var(--oranje)}
+.post .naam{font:700 15px/1.15 var(--f)}
+.post .bedrag{font:700 18px var(--m);letter-spacing:-.02em}
+.post .ico{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:30px;filter:grayscale(.2);z-index:1}
+.post .eisen{position:absolute;top:8px;right:8px;display:grid;gap:4px;z-index:2}
+.post .eisen b{font:700 10px var(--m);padding:3px 6px;border-radius:6px;background:var(--k);color:#111;white-space:nowrap}
+.post .wijzers{position:absolute;bottom:-12px;left:0;right:0;display:flex;justify-content:center;gap:3px;z-index:2}
+.post .wijzers i{width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid var(--k);filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+.post.flits{animation:flits .5s}
+@keyframes flits{0%{transform:scale(1)}40%{transform:scale(1.02)}100%{transform:scale(1)}}
+.meters{padding:14px 16px;display:grid;align-content:start;gap:12px}
+.meter{display:grid;gap:5px}
+.meter .rij{display:flex;justify-content:space-between;font:600 12px var(--m)}
+.meter .rij em{font-style:normal;font-weight:700}
+.meter .rij em.plus{color:#118a49}.meter .rij em.min{color:#d12f2f}
+.meter .balk{height:8px}
+.wetten{border-top:1px solid var(--hair);padding-top:10px;display:grid;gap:6px}
+.wetten p{margin:0;font:500 12px/1.3 var(--f)}
+.wetten p b{font:700 11px var(--m);margin-right:4px}
+.onder{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:12px 16px}
+.uitleg{font:600 15px/1.35 var(--f)}
+.uitleg .label{display:block;margin-bottom:4px}
+.hoek .naam{white-space:nowrap}
+.hoek .rol{width:14px;height:14px;border-radius:50%;background:var(--rk);margin-left:auto;box-shadow:0 0 0 3px rgba(255,255,255,.7)}
+.hoek .status{font:700 11px var(--m);letter-spacing:.1em;text-transform:uppercase}
+.hoek .status.ok{color:#118a49}.hoek .status.nee{color:#d12f2f}
+.hoek .mini{display:grid;gap:3px}
+.hoek .mini div{display:grid;grid-template-columns:72px 1fr 38px;gap:6px;align-items:center;font:500 10.5px var(--m)}
+.hoek .mini div.sel{font-weight:700;color:var(--ink)}
+.hoek .mini .balk{height:6px}
+.hoek.beurt{outline:3px solid var(--k);outline-offset:2px}
+/* grote kaarten over het midden */
+.kaart{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;width:min(760px,60vw);padding:26px 30px;display:none;gap:14px}
+.kaart.aan{display:grid;animation:in .35s}
+@keyframes in{from{opacity:0;transform:translate(-50%,-46%)}to{opacity:1;transform:translate(-50%,-50%)}}
+.kaart .groot{font:800 clamp(28px,3vw,46px)/1.05 var(--f);letter-spacing:-.03em}
+.kaart .tekst{font:500 17px/1.4 var(--f)}
+.stemmen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stem{padding:14px 10px;border-radius:14px;background:rgba(255,255,255,.5);display:grid;gap:6px;justify-items:center;text-align:center}
+.stem .badge{width:34px;height:34px;border-radius:9px;background:var(--k);display:grid;place-items:center;font:700 15px var(--m)}
+.stem b{font:800 20px var(--f)}
+.stem b.voor{color:#118a49}.stem b.tegen{color:#d12f2f}.stem b.onth{color:var(--muted)}
+.nota{display:flex;gap:8px;flex-wrap:wrap}
+.nota span{font:600 13px var(--f);padding:7px 11px;border-radius:999px;background:rgba(0,0,0,.06)}
+.nota span.sel{background:#111;color:#fff}
+.koppen{display:grid;gap:8px;max-height:40vh;overflow:auto}
+.koppen p{margin:0;font:700 17px/1.25 var(--f)}
+.koppen p small{display:block;font:500 11px var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.instel{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.instel div{padding:14px;border-radius:14px;background:rgba(255,255,255,.5)}
+.instel b{display:block;font:800 40px/1 var(--f)}
+dialog#rolkaarten{border:0;border-radius:18px;padding:24px;width:min(1100px,92vw);max-height:90vh;overflow:auto;background:#fafaf7}
+dialog::backdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(4px)}
+.kaarten{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.rk{border:2px solid var(--rk);border-radius:14px;padding:14px 16px;break-inside:avoid}
+.rk h3{margin:0 0 4px;font:800 24px var(--f)}
+.rk p{margin:4px 0;font:500 13px/1.35 var(--f)}
+.rk ul{margin:6px 0 0;padding-left:18px;font:500 13px/1.4 var(--f)}
+@media print{
+  body{overflow:visible;background:#fff}
+  body>*:not(dialog){display:none!important}
+  dialog#rolkaarten{position:static;width:auto;max-height:none;overflow:visible;box-shadow:none}
+  dialog .geenprint{display:none}
+}
+@media (max-width:1300px){.pagina{padding:18px 260px}.midden{grid-template-columns:1fr 210px}}
+</style>
+</head>
+<body>
+<div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
+<div class="pagina">
+  <section class="krant glas sterk">
+    <div class="label" id="krantLabel">09 · gemeenteraad · kwartwijk</div>
+    <div class="kopregel" id="kop">Gemeenteraad van Kwartwijk</div>
+    <div class="vraag" id="vraag"></div>
+    <div class="rechts">
+      <div class="fase" id="fase"><span>voorstel</span><span>bod</span><span>onderhandelen</span><span>stemming</span><span>gevolgen</span></div>
+      <div class="klok" id="klok" title="Klik om de klok stil te zetten">–:––</div>
+    </div>
+  </section>
+  <div class="midden">
+    <section class="begroting glas">
+      <div class="bkop"><span class="label" id="bLabel">begroting</span><span class="rest" id="rest">nog te verdelen € 0</span></div>
+      <div class="posten" id="posten"></div>
+    </section>
+    <section class="meters glas" id="meters"></section>
+  </div>
+  <footer class="onder glas">
+    <div class="uitleg" id="uitleg"></div>
+    <div style="display:flex;gap:8px"><button class="knop" id="kaartenKnop">rolkaarten</button><button class="knop" id="opnieuwKnop">opnieuw</button></div>
+  </footer>
+</div>
+<div class="hoek glas h1" id="h1"></div><div class="hoek glas h2" id="h2"></div><div class="hoek glas h3" id="h3"></div><div class="hoek glas h4" id="h4"></div>
+<section class="kaart glas sterk" id="kaart"></section>
+
+<dialog id="rolkaarten" data-venster>
+  <div class="geenprint" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <b style="font:800 22px var(--f)">Rolkaarten en wettenkaart</b>
+    <span style="display:flex;gap:8px"><button class="knop oranje" onclick="window.print()">printen</button><button class="knop" onclick="this.closest('dialog').close()">sluiten</button></span>
+  </div>
+  <div class="kaarten" id="kaartenInhoud"></div>
+</dialog>
+
+<script src="../kastjes.js"></script>
+<script src="../thuis.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KLEUR = { 1: '#ff7a1a', 2: '#3b8bff', 3: '#21c06b', 4: '#b768ff' };
+  var STAP = 25; // bedragen in duizenden euro's, stappen van € 25.000
+
+  // ---------- spelgegevens ----------
+  var ROLLEN = [
+    { id: 'ond', naam: 'Ondernemer', kleur: '#ff7a1a', achterban: 'winkeliers, bedrijven, werkgevers', wil: 'werk, bereikbaarheid, parkeerplek', gevoelig: 'Vrijheid: de gemeente moet niet alles regelen' },
+    { id: 'buurt', naam: 'Buurtbewoner', kleur: '#3b8bff', achterban: 'gezinnen, ouderen, huurders', wil: 'woningen, veiligheid, rust', gevoelig: 'Solidariteit: niemand mag achterblijven' },
+    { id: 'jong', naam: 'Jongere', kleur: '#b768ff', achterban: 'jongeren van 12 tot 23', wil: 'een eigen plek, sport, inspraak', gevoelig: 'Gelijkwaardigheid: jongeren tellen ook mee' },
+    { id: 'natuur', naam: 'Natuur', kleur: '#21c06b', achterban: 'dieren, bomen, toekomstige bewoners', wil: 'groen, schone lucht, duurzaam bouwen', gevoelig: 'Spreekt voor wie zelf geen stem heeft' }
+  ];
+  var WETTEN = [
+    { nr: 'W1', tekst: 'Het Ooievaarsveld is beschermd natuurgebied. Daar mag niet gebouwd worden.' },
+    { nr: 'W2', tekst: 'Iedereen moet bij de huisarts kunnen komen, ook zonder auto.' },
+    { nr: 'W3', tekst: 'Camera’s op straat alleen als het echt nodig is: nooit meer dan de helft van het geld.' }
+  ];
+  var MKEYS = ['wonen', 'werk', 'groen', 'jongeren', 'veiligheid'];
+  // doel = hoe de achterban het geld het liefst verdeeld ziet (aandelen), eis = harde eis van de rolkaart
+  var SCEN = [
+    { id: 'fabriek', titel: 'Het fabrieksterrein', kop: 'Fabrieksterrein staat leeg: wat komt erop?', vraag: 'Het oude fabrieksterrein is van de gemeente. Er is € 1 miljoen. Waar gaat het geld heen?', budget: 1000,
+      posten: [{ naam: 'Woningen', ico: '🏠', m: { wonen: 1 } }, { naam: 'Bedrijfsruimte', ico: '🏭', m: { werk: 1 } }, { naam: 'Park', ico: '🌳', m: { groen: 1 } }, { naam: 'Jongerenplek', ico: '🛹', m: { jongeren: 1 } }],
+      doel: { ond: [.2, .5, .1, .2], buurt: [.5, .1, .25, .15], jong: [.2, .15, .2, .45], natuur: [.15, .05, .6, .2] },
+      eis: { ond: { p: 1, min: 250, t: 'Minstens € 250.000 naar bedrijfsruimte.' }, buurt: { p: 0, min: 300, t: 'Minstens € 300.000 naar nieuwe betaalbare woningen.' }, jong: { p: 3, min: 150, t: 'Minstens € 150.000 voor de jongerenplek. Anders steun je het plan niet.' }, natuur: { p: 2, min: 300, t: 'Minstens € 300.000 voor het park.' } },
+      gebeurtenis: { kop: 'Supermarkt wil op het fabrieksterrein bouwen', tekst: 'Een supermarkt belooft 40 banen als hij op het terrein mag. De winkeliers willen nu nog meer bedrijfsruimte.', rol: 'ond', doel: [.15, .6, .05, .2] } },
+    { id: 'plein', titel: 'Overlast bij het plein', kop: 'Bewoners klagen over hangjongeren op het plein', vraag: 'Er is € 400.000 om het plein beter te maken. Wat helpt echt?', budget: 400,
+      posten: [{ naam: 'Camera’s en boa’s', ico: '📹', m: { veiligheid: 1, jongeren: -.5 } }, { naam: 'Jongerenwerker', ico: '🤝', m: { jongeren: 1, veiligheid: .5 } }, { naam: 'Verlichting', ico: '💡', m: { veiligheid: .7, groen: -.4 } }, { naam: 'Sportkooi', ico: '⚽', m: { jongeren: 1 } }],
+      doel: { ond: [.4, .1, .4, .1], buurt: [.45, .15, .3, .1], jong: [.05, .4, .1, .45], natuur: [.15, .35, .05, .45] },
+      eis: { ond: { p: 0, min: 100, t: 'Minstens € 100.000 voor camera’s en boa’s. Klanten moeten zich veilig voelen.' }, buurt: { p: 0, min: 150, t: 'Minstens € 150.000 voor camera’s en boa’s.' }, jong: { p: 3, min: 100, t: 'Minstens € 100.000 voor de sportkooi.' }, natuur: { p: 2, max: 100, t: 'Hoogstens € 100.000 voor verlichting. Licht ’s nachts jaagt vleermuizen weg.' } },
+      gebeurtenis: { kop: 'Filmpje van ruzie op het plein gaat viraal', tekst: 'Heel het dorp heeft het gezien. De buurt wil nu vooral meer toezicht.', rol: 'buurt', doel: [.6, .1, .25, .05] } },
+    { id: 'bez', titel: 'Bezuinigen', kop: 'Rijk geeft minder geld: Kwartwijk moet schrappen', vraag: 'De raad moet € 300.000 schrappen. Er is nog maar € 900.000. Wie levert in?', budget: 900, start: [400, 300, 300, 200],
+      posten: [{ naam: 'Bibliotheek', ico: '📚', m: { jongeren: .5, wonen: .5 } }, { naam: 'Buurtbus', ico: '🚌', m: { wonen: 1 } }, { naam: 'Sportsubsidie', ico: '🏅', m: { jongeren: 1 } }, { naam: 'Bomen planten', ico: '🌱', m: { groen: 1 } }],
+      doel: { ond: [.3, .3, .25, .15], buurt: [.35, .35, .15, .15], jong: [.3, .1, .45, .15], natuur: [.25, .15, .15, .45] },
+      eis: { ond: { p: 1, min: 200, t: 'Minstens € 200.000 voor de buurtbus. Klanten moeten bij de winkels komen.' }, buurt: { p: 1, min: 250, t: 'Minstens € 250.000 voor de buurtbus.' }, jong: { p: 2, min: 250, t: 'Minstens € 250.000 voor sportsubsidie.' }, natuur: { p: 3, min: 200, t: 'Er wordt niet op bomen bezuinigd: minstens € 200.000.' } },
+      gebeurtenis: { kop: '“De buurtbus is mijn enige manier om bij de dokter te komen”', tekst: '40 ouderen komen naar de inspraakavond. De buurt wil de buurtbus nu echt houden.', rol: 'buurt', doel: [.3, .5, .1, .1] } },
+    { id: 'zon', titel: 'Het zonnepark', kop: 'Kwartwijk moet duurzame energie opwekken', vraag: 'Er is € 1,5 miljoen. Nu goedkoop of later beter? En wat doen we met de natuur?', budget: 1500,
+      posten: [{ naam: 'Zonnepark Ooievaarsveld', ico: '☀️', m: { werk: 1, groen: -1 } }, { naam: 'Panelen op daken', ico: '🔆', m: { groen: 1 } }, { naam: 'Isolatie huurhuizen', ico: '🧱', m: { wonen: 1, groen: .5 } }, { naam: 'Korting energierekening', ico: '💶', m: { wonen: 1 } }],
+      doel: { ond: [.5, .3, .1, .1], buurt: [.1, .2, .4, .3], jong: [.2, .4, .2, .2], natuur: [0, .45, .45, .1] },
+      eis: { ond: { p: 0, min: 500, t: 'Minstens € 500.000 voor het zonnepark. Dat is het goedkoopst.' }, buurt: { p: 3, min: 300, t: 'Minstens € 300.000 korting op de energierekening.' }, jong: { p: 1, min: 300, t: 'Minstens € 300.000 voor panelen op daken.' }, natuur: { p: 0, max: 0, t: 'Geen euro naar het zonnepark op het Ooievaarsveld.' } },
+      gebeurtenis: { kop: 'Ondernemer uit het dorp wil het zonnepark bouwen', tekst: 'Hij neemt 20 mensen uit Kwartwijk in dienst. De winkeliers willen het zonnepark nu nog liever.', rol: 'ond', doel: [.6, .25, .1, .05] } }
+  ];
+  function wetGebroken(sc, v) {
+    var w = [];
+    if (sc.id === 'zon' && v[0] > 0) w.push(WETTEN[0]);
+    if (sc.id === 'bez' && v[1] < 100) w.push(WETTEN[1]);
+    if (sc.id === 'plein' && v[0] > sc.budget / 2) w.push(WETTEN[2]);
+    return w;
+  }
+  var NOTAS = ['De buurt is niet gehoord', 'Te duur', 'Slecht voor de natuur', 'Jongeren zijn vergeten', 'Goed voor nu, slecht voor later', 'Dit is oneerlijk verdeeld'];
+  var FASES = ['voorstel', 'bod', 'onderhandelen', 'stemming', 'gevolgen'];
+
+  // ---------- toestand ----------
+  var g = {
+    fase: 'instellen', aantal: 4, rondes: 4, ronde: 0, spelers: [], rol: {}, verdeling: [], vorige: [], bod: {}, sel: {}, klaar: {},
+    eis: {}, eisGezet: {}, terStemming: {}, stem: {}, stemVast: {}, verworpen: 0, laatste: [], meters: {}, metersVoor: null, koppen: [],
+    rechter: {}, rechterBezig: false, nota: 0, besluit: null, gebeurd: false, doelRonde: {}, klok: 0, klokLoopt: false, klokStil: false
+  };
+  MKEYS.forEach(function (k) { g.meters[k] = 50; });
+  var actief = {};
+  // Eén kastje: het kastje speelt om de beurt raadslid 1, 2, 3 en 4 (doorgeven).
+  var fysiek = {}, fysiekNr = 1, beurt = 1;
+  function solo() { return Object.keys(fysiek).length <= 1; }
+
+  function sc() { return SCEN[g.ronde % SCEN.length]; }
+  function som(v) { return v.reduce(function (a, b) { return a + b; }, 0); }
+  function plafond() { var s = sc(); return Math.max(s.budget, s.start ? som(s.start) : 0); }
+  function euro(k) { return '€ ' + (Math.round(k) * 1000).toLocaleString('nl-NL'); }
+  function rolVan(s) { return ROLLEN[g.rol[s]]; }
+  function meerderheid() { return g.spelers.length >= 4 ? 3 : 2; }
+  function speler(i) { return g.spelers.indexOf(i) >= 0; }
+
+  // tevredenheid van de achterban (0..1): afstand tot de gewenste verdeling, gehalveerd als de harde eis niet gehaald wordt
+  function eisGehaald(e, v) { return e.max !== undefined ? v[e.p] <= e.max : v[e.p] >= e.min; }
+  function tevreden(s, v) {
+    var r = rolVan(s); if (!r) return 0;
+    var doel = g.doelRonde[r.id] || sc().doel[r.id], tot = Math.max(som(v), 1), afw = 0;
+    for (var i = 0; i < 4; i++) afw += Math.abs(v[i] / tot - doel[i]);
+    var t = 1 - afw / 1.4;
+    if (!eisGehaald(sc().eis[r.id], v)) t *= 0.45;
+    return Math.max(0, Math.min(1, t));
+  }
+  function mengKleur(t) { // rood -> geel -> groen
+    var r = t < .5 ? 255 : Math.round(255 * (1 - t) * 2), gr = t < .5 ? Math.round(255 * t * 2) : 220;
+    return '#' + [r, gr, 40].map(function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+  }
+
+  // ---------- leds ----------
+  var knipper = 0;
+  function ledVoor(s) {
+    var r = rolVan(s);
+    if (g.rechterBezig) return (knipper % 2) ? '#b768ff' : '#000000';
+    if (g.fase === 'instellen' || !r) return KLEUR[s];
+    if (g.fase === 'voorstel') return r.kleur;
+    if (g.fase === 'bod') return mengKleur(tevreden(s, g.bod[s]));
+    if (g.fase === 'onderhandelen') return g.terStemming[s] ? '#ffffff' : mengKleur(tevreden(s, g.verdeling));
+    if (g.fase === 'stemming') { if (g.stemVast[s]) return '#ffffff'; return { voor: '#20d060', tegen: '#ff2020', onth: '#808080' }[g.stem[s]] || '#ffffff'; }
+    if (g.fase === 'uitslag' || g.fase === 'provincie') return g.besluit === 'provincie' ? '#ff4010' : ({ voor: '#20d060', tegen: '#ff2020', onth: '#000000' }[g.stem[s]] || '#000000');
+    if (g.fase === 'gevolgen' || g.fase === 'einde') return mengKleur(tevreden(s, g.verdeling));
+    return r.kleur;
+  }
+  function leds() {
+    if (solo()) { Kastjes.led(fysiekNr, ledVoor(g.fase === 'instellen' ? fysiekNr : beurt)); return; }
+    for (var s = 1; s <= 4; s++) if (actief[s]) Kastjes.led(s, ledVoor(s));
+  }
+
+  // ---------- tekenen ----------
+  function tekenFase() {
+    var f = g.fase === 'uitslag' || g.fase === 'provincie' ? 'stemming' : g.fase;
+    var sp = document.querySelectorAll('#fase span');
+    for (var i = 0; i < sp.length; i++) sp[i].classList.toggle('nu', FASES[i] === f);
+  }
+  function tekenPosten() {
+    var s = sc(), v = g.verdeling, max = plafond();
+    if (g.fase === 'bod') {
+      if (solo()) v = g.bod[beurt] || v;
+      else { v = [0, 0, 0, 0]; g.spelers.forEach(function (sp) { for (var j = 0; j < 4; j++) v[j] += g.bod[sp][j] / g.spelers.length; }); v = v.map(function (x) { return Math.round(x / STAP) * STAP; }); }
+    }
+    var html = '';
+    for (var i = 0; i < 4; i++) {
+      var p = s.posten[i], eisen = '', wijzers = '';
+      g.spelers.forEach(function (sp) {
+        var e = g.eis[sp];
+        if (e && e.p === i) eisen += '<b style="--k:' + rolVan(sp).kleur + '">🔒 ' + rolVan(sp).naam + ' ≥ ' + Math.round(e.min) + 'k</b>';
+        var wie = solo() ? sp === beurt : true;
+        if (wie && g.sel[sp] === i && (g.fase === 'onderhandelen' || g.fase === 'bod')) wijzers += '<i style="--k:' + KLEUR[sp] + '"></i>';
+      });
+      var waarde = v[i] || 0, ijk = s.start ? '<div class="ijk" style="bottom:' + (s.start[i] / max * 100) + '%" title="was"></div>' : '';
+      html += '<div class="post" style="border-color:' + (g.laatste[i] ? KLEUR[g.laatste[i]] : 'transparent') + '">' +
+        '<div class="koker"><span class="ico">' + p.ico + '</span><div class="vul" style="height:' + (waarde / max * 100) + '%;background:' + (g.fase === 'bod' ? 'rgba(17,17,17,.55)' : '#111') + '"></div>' + ijk + '</div>' +
+        '<div class="naam">' + p.naam + '</div><div class="bedrag">' + euro(waarde) + '</div>' +
+        '<div class="eisen">' + eisen + '</div><div class="wijzers">' + wijzers + '</div></div>';
+    }
+    document.getElementById('posten').innerHTML = html;
+    var rest = s.budget - som(v), r = document.getElementById('rest');
+    r.textContent = rest < 0 ? 'nog schrappen ' + euro(-rest) : 'nog te verdelen ' + euro(rest);
+    r.className = 'rest' + (rest === 0 ? ' nul' : rest < 0 ? ' min' : '');
+    document.getElementById('bLabel').textContent = g.fase === 'bod' ? 'eerste bod · ' + (solo() ? 'raadslid ' + beurt : 'gemiddelde van de biedingen') : 'begroting · ' + s.titel.toLowerCase() + ' · ' + euro(s.budget);
+  }
+  function tekenMeters(delta) {
+    var html = '<span class="label">dorpsmeters kwartwijk</span>';
+    MKEYS.forEach(function (k) {
+      var d = delta && delta[k] ? delta[k] : 0;
+      html += '<div class="meter"><div class="rij"><span>' + k + '</span><span>' + (d ? '<em class="' + (d > 0 ? 'plus' : 'min') + '">' + (d > 0 ? '+' : '') + d + '</em> ' : '') + Math.round(g.meters[k]) + '</span></div>' +
+        '<div class="balk"><i style="width:' + g.meters[k] + '%;--k:' + (g.meters[k] < 35 ? '#d12f2f' : g.meters[k] > 65 ? '#118a49' : '#111') + '"></i></div></div>';
+    });
+    html += '<div class="wetten"><span class="label">wettenkaart</span>' + WETTEN.map(function (w) { return '<p><b>' + w.nr + '</b>' + w.tekst + '</p>'; }).join('') + '</div>';
+    document.getElementById('meters').innerHTML = html;
+  }
+  function hoeken() {
+    for (var s = 1; s <= 4; s++) {
+      var el = document.getElementById('h' + s), r = rolVan(s), mee = speler(s) || (g.fase === 'instellen' && actief[s]);
+      el.style.setProperty('--k', KLEUR[s]);
+      el.classList.toggle('slaapt', !mee);
+      el.classList.toggle('beurt', solo() && s === beurt && g.fase !== 'instellen' && speler(s));
+      var html = '<div class="top"><span class="badge">' + s + '</span>' + (r && speler(s) && g.fase !== 'instellen' ? '<span class="naam">' + r.naam + '</span><span class="rol" style="--rk:' + r.kleur + '" title="rolkleur"></span>' : '<span class="naam">Raadslid ' + s + '</span>') + '</div>';
+      if (!mee) { html += '<div class="status">' + (g.fase === 'instellen' ? (solo() ? '' : 'druk iets om mee te doen') : 'doet niet mee') + '</div>'; el.innerHTML = html; continue; }
+      if (g.fase === 'instellen') { el.innerHTML = html + '<div class="status ok">doet mee</div>'; continue; }
+      var st = statusTekst(s);
+      html += '<div class="status ' + st[1] + '">' + st[0] + '</div>';
+      if (g.fase === 'bod' && g.bod[s]) {
+        html += '<div class="mini">' + sc().posten.map(function (p, i) {
+          return '<div class="' + (g.sel[s] === i ? 'sel' : '') + '"><span>' + p.naam.split(' ')[0].slice(0, 10) + '</span><span class="balk"><i style="width:' + (g.bod[s][i] / plafond() * 100) + '%;--k:' + KLEUR[s] + '"></i></span><span>' + g.bod[s][i] + 'k</span></div>';
+        }).join('') + '</div>';
+      }
+      if (g.fase !== 'voorstel') {
+        var v = g.fase === 'bod' ? g.bod[s] : g.verdeling, t = tevreden(s, v);
+        html += '<div class="rij"><span>achterban</span><b>' + Math.round(t * 100) + '%</b></div><div class="balk"><i style="width:' + (t * 100) + '%;--k:' + mengKleur(t) + '"></i></div>';
+      }
+      if (g.fase === 'onderhandelen' || g.fase === 'stemming') html += '<div class="rij"><span>eis</span><b>' + (g.eis[s] ? sc().posten[g.eis[s].p].naam.split(' ')[0] + ' ≥ ' + g.eis[s].min + 'k' : g.eisGezet[s] ? 'gebruikt' : '—') + '</b></div>';
+      if (g.fase === 'gevolgen' || g.fase === 'einde') html += '<div class="rij"><span>rechter</span><b>' + (g.rechter[s] ? 'gebruikt' : 'nog 1×') + '</b></div>';
+      el.innerHTML = html;
+    }
+  }
+  function statusTekst(s) {
+    var mijn = solo() ? s === beurt : true;
+    switch (g.fase) {
+      case 'voorstel': return g.klaar[s] ? ['✓ gelezen', 'ok'] : ['leest rolkaart…', ''];
+      case 'bod': return g.klaar[s] ? ['✓ bod staat', 'ok'] : solo() && !mijn ? ['wacht op het kastje', ''] : ['verdeelt…', ''];
+      case 'onderhandelen': return g.terStemming[s] ? ['✋ ter stemming', 'ok'] : solo() && mijn ? ['▶ heeft het kastje', ''] : ['onderhandelt', ''];
+      case 'stemming':
+        if (g.stemVast[s]) return ['✓ heeft gestemd', 'ok'];
+        if (solo() && !mijn) return ['wacht op het kastje', ''];
+        return [{ voor: 'kiest… ▶', tegen: 'kiest… ◀', onth: 'kiest… ▲' }[g.stem[s]] || 'kiest…', ''];
+      case 'uitslag': case 'provincie': return [{ voor: 'voor', tegen: 'tegen', onth: 'onthouden' }[g.stem[s]] || 'onthouden', g.stem[s] === 'voor' ? 'ok' : g.stem[s] === 'tegen' ? 'nee' : ''];
+      default: return ['', ''];
+    }
+  }
+  function zetUitleg(kop, tekst) { document.getElementById('uitleg').innerHTML = '<span class="label">' + kop + '</span>' + tekst; }
+  function kaart(html) { var k = document.getElementById('kaart'); if (!html) { k.classList.remove('aan'); return; } k.innerHTML = html; k.classList.remove('aan'); void k.offsetWidth; k.classList.add('aan'); }
+  function teken() { tekenFase(); tekenPosten(); hoeken(); leds(); }
+  function kleurNaam(s) { return '<b style="color:' + KLEUR[s] + '">raadslid ' + s + '</b>'; }
+
+  // ---------- fases ----------
+  function instellen() {
+    g.fase = 'instellen'; g.ronde = 0; g.koppen = []; g.rechter = {}; g.spelers = []; g.rol = {};
+    MKEYS.forEach(function (k) { g.meters[k] = 50; });
+    if (!solo()) { var n = Object.keys(actief).length; if (n >= 2) g.aantal = n; }
+    stopKlok(); document.getElementById('klok').textContent = '–:––';
+    document.getElementById('kop').textContent = 'Gemeenteraad van Kwartwijk';
+    document.getElementById('vraag').textContent = 'Jullie zijn de raad van het dorp Kwartwijk. Ieder komt op voor zijn eigen achterban. Een voorstel gaat door met een meerderheid.';
+    g.verdeling = [0, 0, 0, 0]; g.laatste = [];
+    tekenInstellen(); teken(); tekenMeters();
+  }
+  function tekenInstellen() {
+    var multi = !solo();
+    kaart('<span class="label">nieuw spel</span><div class="groot">Wie zitten er in de raad?</div>' +
+      '<div class="instel"><div><span class="label">raadsleden · draaiknop rechts</span><b>' + g.aantal + '</b></div><div><span class="label">rondes · draaiknop links</span><b>' + g.rondes + '</b></div></div>' +
+      '<div class="tekst">' + (multi ? 'Ieder heeft een eigen kastje. Druk op een knop om mee te doen.' : 'Eén kastje: jullie geven het kastje door. Wie aan de beurt is, ziet een rand om zijn hoek.') +
+      ' Pak de <b>rolkaarten</b> (knop rechtsonder om te printen). Druk op <span class="kap">toets 2</span> om te beginnen.</div>');
+    zetUitleg('instellen', 'Draaiknop rechts = aantal raadsleden (2 tot 4). Draaiknop links = aantal rondes (3 of 4). Toets 2 = beginnen.');
+  }
+  function start() {
+    if (solo()) { g.spelers = []; for (var i = 1; i <= g.aantal; i++) g.spelers.push(i); }
+    else { g.spelers = Object.keys(actief).map(Number).sort(); if (g.spelers.length < 2) { zetUitleg('nog even', 'Er moeten minstens 2 raadsleden meedoen. Druk op een knop van een tweede kastje.'); return; } g.aantal = g.spelers.length; }
+    g.ronde = 0; nieuweRonde();
+  }
+  function nieuweRonde() {
+    var s = sc(), n = g.spelers.length;
+    // rollen: bij minder spelers valt eerst de Natuur weg, dan de Jongere; na elke ronde schuiven ze één plek door
+    g.spelers.forEach(function (sp, i) { g.rol[sp] = (i + g.ronde) % n; });
+    g.verdeling = (s.start || [0, 0, 0, 0]).slice(); g.vorige = g.verdeling.slice(); g.laatste = [];
+    g.bod = {}; g.klaar = {}; g.eis = {}; g.eisGezet = {}; g.terStemming = {}; g.stem = {}; g.stemVast = {}; g.verworpen = 0; g.gebeurd = false; g.doelRonde = {}; g.besluit = null; g.metersVoor = null;
+    g.spelers.forEach(function (sp) { g.sel[sp] = 0; g.bod[sp] = g.verdeling.slice(); });
+    beurt = g.spelers[0];
+    g.fase = 'voorstel';
+    document.getElementById('krantLabel').textContent = 'ronde ' + (g.ronde + 1) + ' / ' + g.rondes + ' · kwartwijkse courant';
+    document.getElementById('kop').textContent = s.kop;
+    document.getElementById('vraag').textContent = s.vraag;
+    stopKlok(); document.getElementById('klok').textContent = '1:00'; startKlok(60);
+    kaart('<span class="label">raadsvoorstel · ronde ' + (g.ronde + 1) + '</span><div class="groot">' + s.titel + '</div><div class="tekst">' + s.vraag + '</div>' +
+      '<div class="tekst">' + g.spelers.map(function (sp) { return kleurNaam(sp) + ' is <b>' + rolVan(sp).naam + '</b>'; }).join(' · ') + '</div>' +
+      '<div class="tekst" style="color:var(--muted)">Lees op je rolkaart wat jouw achterban bij <b>' + s.titel.toLowerCase() + '</b> wil. ' + (solo() ? 'Druk op toets 2 als iedereen klaar is.' : 'Druk op toets 2 als je klaar bent.') + '</div>');
+    zetUitleg('raadsvoorstel', 'Lees je rolkaart. Wat wil jouw achterban? Wat is je harde eis? ' + (solo() ? 'Toets 2 = verder.' : 'Toets 2 = klaar.'));
+    tekenMeters(); teken();
+  }
+  function naarBod() {
+    g.fase = 'bod'; g.klaar = {}; kaart(null); beurt = g.spelers[0];
+    stopKlok(); startKlok(90);
+    zetUitleg('eerste bod', solo() ? kleurNaam(beurt) + ': verdeel het geld zoals jouw achterban het wil. Draaiknop links = post kiezen, rechts = bedrag. Toets 2 = vast en doorgeven.' :
+      'Ieder verdeelt het geld in zijn eigen hoek, zoals zijn achterban het wil. Draaiknop links = post kiezen, rechts = bedrag. Toets 2 = klaar.');
+    teken();
+  }
+  function naarOnderhandelen(extra, reden) {
+    if (g.fase === 'bod') {
+      // gemiddelde van de biedingen als startvoorstel, afgerond op € 25.000
+      var s = sc(), v = [0, 0, 0, 0];
+      g.spelers.forEach(function (sp) { for (var i = 0; i < 4; i++) v[i] += g.bod[sp][i] / g.spelers.length; });
+      v = v.map(function (x) { return Math.round(x / STAP) * STAP; });
+      var verschil = s.budget - som(v), grootste = v.indexOf(Math.max.apply(null, v));
+      v[grootste] = Math.max(0, v[grootste] + verschil);
+      g.verdeling = v;
+    }
+    g.vorige = g.verdeling.slice(); g.terStemming = {}; g.fase = 'onderhandelen'; beurt = g.spelers[0];
+    stopKlok(); startKlok(extra ? 120 : 240);
+    kaart(null);
+    zetUitleg('onderhandelen', (reden ? '<b>' + reden + '</b> ' : extra ? '<b>Verworpen.</b> Twee minuten extra. ' : 'Het gemiddelde van jullie biedingen staat in het midden. ') +
+      (solo() ? 'Praat met elkaar. Wie het kastje heeft, draait. Toets 1 = eis op je post · toets 2 = kastje doorgeven · joystick indrukken = ter stemming.' :
+        'Iedereen draait aan dezelfde begroting. Toets 1 = eis op je post (mag niet meer omlaag) · toets 2 = ter stemming (' + meerderheid() + ' nodig).'));
+    teken();
+  }
+  function naarStemming() {
+    var s = sc();
+    if (som(g.verdeling) !== s.budget) { zetUitleg('nog niet', s.budget - som(g.verdeling) < 0 ? 'Er moet nog ' + euro(som(g.verdeling) - s.budget) + ' geschrapt worden voordat je kunt stemmen.' : 'Er ligt nog ' + euro(s.budget - som(g.verdeling)) + ' op tafel. Verdeel eerst al het geld.'); g.terStemming = {}; teken(); return; }
+    g.fase = 'stemming'; g.stem = {}; g.stemVast = {}; beurt = g.spelers[0];
+    stopKlok(); if (!solo()) startKlok(30); else document.getElementById('klok').textContent = '–:––';
+    kaart('<span class="label">stemming · geheim</span><div class="groot">Ter stemming</div><div class="tekst">Joystick naar rechts = <b style="color:#118a49">voor</b>, naar links = <b style="color:#d12f2f">tegen</b>, omhoog = onthouden. Joystick indrukken = stem vastzetten.' +
+      (solo() ? ' Daarna geef je het kastje door. Niet kijken!' : ' Wie niet stemt, telt als onthouden.') + ' Er zijn ' + meerderheid() + ' stemmen voor nodig.</div>');
+    zetUitleg('stemming', solo() ? kleurNaam(beurt) + ' stemt. De anderen kijken even weg.' : 'Iedereen stemt tegelijk en geheim.');
+    teken();
+  }
+  function uitslag() {
+    stopKlok();
+    var voor = 0, tegen = [];
+    g.spelers.forEach(function (sp) { if (!g.stemVast[sp]) g.stem[sp] = 'onth'; if (g.stem[sp] === 'voor') voor++; if (g.stem[sp] === 'tegen') tegen.push(sp); });
+    var aan = voor >= meerderheid();
+    g.fase = 'uitslag'; g.nota = 0;
+    var stemmen = '<div class="stemmen">' + g.spelers.map(function (sp) {
+      var st = g.stem[sp];
+      return '<div class="stem"><span class="badge" style="--k:' + KLEUR[sp] + '">' + sp + '</span><span class="label">' + rolVan(sp).naam + '</span><b class="' + st + '">' + { voor: 'VOOR', tegen: 'TEGEN', onth: 'ONTHOUDEN' }[st] + '</b></div>';
+    }).join('') + '</div>';
+    if (aan) {
+      g.besluit = 'aangenomen'; g.tegen = tegen;
+      kaart('<span class="label">uitslag · ' + voor + ' van ' + g.spelers.length + ' voor</span><div class="groot" style="color:#118a49">Aangenomen</div>' + stemmen +
+        (tegen.length ? '<div class="tekst">Minderheidsnota van wie tegen stemde. Draaiknop rechts = zin kiezen:</div><div class="nota" id="nota"></div>' : '') +
+        '<div class="tekst" style="color:var(--muted)">Toets 2 = naar de gevolgen.</div>');
+      tekenNota();
+      zetUitleg('aangenomen', tegen.length ? 'De minderheid kiest een zin voor de krant (draaiknop rechts). Toets 2 = gevolgen.' : 'Iedereen eens of onthouden. Toets 2 = gevolgen.');
+    } else {
+      g.verworpen++;
+      if (g.verworpen >= 2) { provincie(stemmen, voor); return; }
+      g.besluit = 'verworpen';
+      kaart('<span class="label">uitslag · ' + voor + ' van ' + g.spelers.length + ' voor · ' + meerderheid() + ' nodig</span><div class="groot" style="color:#d12f2f">Verworpen</div>' + stemmen +
+        '<div class="tekst">Terug naar onderhandelen, met twee minuten extra. Let op: wordt het nog een keer verworpen, dan grijpt de provincie in.</div><div class="tekst" style="color:var(--muted)">Toets 2 = verder onderhandelen.</div>');
+      zetUitleg('verworpen', 'Wat moet er veranderen zodat er wel een meerderheid komt? Toets 2 = verder.');
+    }
+    teken();
+  }
+  function tekenNota() { var n = document.getElementById('nota'); if (n) n.innerHTML = NOTAS.map(function (t, i) { return '<span class="' + (i === g.nota ? 'sel' : '') + '">' + t + '</span>'; }).join(''); }
+  function provincie(stemmen, voor) {
+    var s = sc(), elk = Math.round(s.budget * 0.9 / 4 / STAP) * STAP;
+    g.verdeling = [elk, elk, elk, elk]; g.besluit = 'provincie'; g.fase = 'provincie';
+    kaart('<span class="label">uitslag · ' + voor + ' voor · voor de tweede keer verworpen</span><div class="groot" style="color:var(--oranje)">De provincie grijpt in</div>' + stemmen +
+      '<div class="tekst">De raad kwam er niet uit. De provincie verdeelt het geld gelijk over de posten. Er gaat 10% af voor de kosten van de vertraging: ' + euro(s.budget - som(g.verdeling)) + ' is weg.</div><div class="tekst" style="color:var(--muted)">Toets 2 = naar de gevolgen.</div>');
+    zetUitleg('provincie', 'Geen besluit is ook een besluit. Toets 2 = gevolgen.');
+    var n = 0; (function flits() { if (n++ >= 6) { teken(); return; } g.spelers.forEach(function (sp) { if (!solo()) Kastjes.led(sp, n % 2 ? '#ff3000' : '#000000'); }); if (solo()) Kastjes.led(fysiekNr, n % 2 ? '#ff3000' : '#000000'); setTimeout(flits, 250); })();
+    teken();
+  }
+  function gevolgen() {
+    var s = sc(), delta = {};
+    g.metersVoor = JSON.parse(JSON.stringify(g.meters));
+    s.posten.forEach(function (p, i) {
+      var aandeel = g.verdeling[i] / s.budget - 0.25;
+      for (var k in p.m) delta[k] = (delta[k] || 0) + aandeel * 60 * p.m[k];
+    });
+    if (g.besluit === 'provincie') MKEYS.forEach(function (k) { delta[k] = (delta[k] || 0) - 4; });
+    for (var k in delta) { delta[k] = Math.round(delta[k]); g.meters[k] = Math.max(0, Math.min(100, g.meters[k] + delta[k])); }
+    var hoog = g.verdeling.indexOf(Math.max.apply(null, g.verdeling)), laag = g.verdeling.indexOf(Math.min.apply(null, g.verdeling));
+    var kop = g.besluit === 'provincie' ? 'Raad komt er niet uit: provincie verdeelt geld gelijk' :
+      'Raad kiest voor ' + s.posten[hoog].naam.toLowerCase() + (laag !== hoog ? ', ' + s.posten[laag].naam.toLowerCase() + ' krijgt het minst' : '');
+    var nota = g.besluit === 'aangenomen' && g.tegen && g.tegen.length ? '“' + NOTAS[g.nota] + '”, zegt de minderheid (' + g.tegen.map(function (sp) { return rolVan(sp).naam; }).join(', ') + ')' : '';
+    g.koppen[g.ronde] = { ronde: g.ronde + 1, titel: s.titel, kop: kop, nota: nota };
+    g.fase = 'gevolgen'; g.gevolgDelta = delta;
+    document.getElementById('kop').textContent = kop;
+    document.getElementById('vraag').textContent = nota || s.vraag;
+    kaart(null); tekenMeters(delta);
+    zetUitleg('gevolgen', 'Kijk naar de dorpsmeters. Is het besluit eerlijk, ook voor wie verloor? Breekt het een wet van de wettenkaart? Dan mag ieder raadslid één keer per spel <b>naar de rechter</b>: joystick omhoog. Toets 2 = ' + (g.ronde + 1 >= g.rondes ? 'einde.' : 'volgende ronde.'));
+    teken();
+  }
+  function naarRechter(s) {
+    if (g.rechterBezig || g.rechter[s] || g.besluit === 'provincie') return;
+    g.rechter[s] = true; g.rechterBezig = true;
+    kaart('<span class="label">naar de rechter · ' + rolVan(s).naam + '</span><div class="groot" style="color:#7a3fd1">De rechter toetst het besluit…</div><div class="tekst">Breekt het besluit van de raad een wet van de wettenkaart?</div>');
+    var t = setInterval(function () { knipper++; leds(); }, 300);
+    setTimeout(function () {
+      clearInterval(t); g.rechterBezig = false;
+      var gebroken = wetGebroken(sc(), g.verdeling);
+      if (gebroken.length) {
+        g.meters = g.metersVoor; g.koppen[g.ronde] = null; tekenMeters();
+        kaart('<span class="label">uitspraak</span><div class="groot" style="color:#d12f2f">Besluit vernietigd</div><div class="tekst">Het besluit breekt de wet: <b>' + gebroken.map(function (w) { return w.nr + ' ' + w.tekst; }).join(' ') + '</b></div><div class="tekst">Ook een meerderheid moet zich aan de wet houden. De raad moet opnieuw. Toets 2 = opnieuw onderhandelen.</div>');
+        g.fase = 'vernietigd'; g.verworpen = 0;
+      } else {
+        kaart('<span class="label">uitspraak</span><div class="groot" style="color:#118a49">Het besluit blijft</div><div class="tekst">Het besluit breekt geen wet. Ook als je het er niet mee eens bent: de meerderheid heeft beslist. Toets 2 = verder.</div>');
+        g.fase = 'rechterOk';
+      }
+      teken();
+    }, 2600);
+    teken();
+  }
+  function einde() {
+    g.fase = 'einde'; stopKlok();
+    kaart('<span class="label">einde · ' + g.rondes + ' rondes</span><div class="groot">Zo ging het in Kwartwijk</div><div class="koppen">' +
+      g.koppen.filter(Boolean).map(function (k) { return '<p><small>ronde ' + k.ronde + ' · ' + k.titel + '</small>' + k.kop + (k.nota ? '<br><span style="font-weight:500;font-size:14px">' + k.nota + '</span>' : '') + '</p>'; }).join('') +
+      '</div><div class="tekst">Nabespreking: welk besluit vond jij het minst eerlijk? Was het daarom ook fout? Wie komt er in het echt op voor de natuur?</div><div class="tekst" style="color:var(--muted)">Toets 2 = nieuw spel.</div>');
+    zetUitleg('einde', 'Vergelijk jullie dorpsmeters met die van een andere raad. Toets 2 = nieuw spel.');
+    tekenMeters(); teken();
+  }
+
+  // ---------- klok ----------
+  var klokEind = 0, klokRest = 0, klokTimer = null;
+  function startKlok(sec) { g.klokLoopt = true; g.klokStil = false; klokEind = performance.now() + sec * 1000; klokRest = sec * 1000; if (!klokTimer) klokTimer = setInterval(tik, 250); tik(); }
+  function stopKlok() { g.klokLoopt = false; document.getElementById('klok').className = 'klok'; }
+  function tik() {
+    var k = document.getElementById('klok');
+    if (!g.klokLoopt) return;
+    if (g.klokStil) { klokEind = performance.now() + klokRest; return; }
+    klokRest = Math.max(0, klokEind - performance.now());
+    var sec = Math.ceil(klokRest / 1000);
+    k.textContent = Math.floor(sec / 60) + ':' + ('0' + sec % 60).slice(-2);
+    k.className = 'klok' + (sec === 0 ? ' op' : '');
+    if (g.fase === 'onderhandelen' && !g.gebeurd && g.verworpen === 0 && klokRest < 120000) gebeurtenis();
+    if (g.fase === 'stemming' && sec === 0 && !solo()) uitslag();
+  }
+  document.getElementById('klok').addEventListener('click', function () { if (!g.klokLoopt) return; g.klokStil = !g.klokStil; this.classList.toggle('stil', g.klokStil); });
+  function gebeurtenis() {
+    g.gebeurd = true;
+    var e = sc().gebeurtenis; if (!e) return;
+    g.doelRonde[e.rol] = e.doel;
+    kaart('<span class="label">laatste nieuws</span><div class="groot">' + e.kop + '</div><div class="tekst">' + e.tekst + '</div>');
+    setTimeout(function () { if (g.fase === 'onderhandelen') kaart(null); }, 7000);
+    teken();
+  }
+
+  // ---------- bediening ----------
+  function draai(s, v, i, stap, wie) {
+    var nieuw = v[i] + stap * STAP, cap = plafond();
+    if (nieuw < 0) return false;
+    if (stap > 0 && som(v) + STAP > cap) return false;
+    if (stap < 0 && v === g.verdeling) {
+      for (var k in g.eis) { var e = g.eis[k]; if (e && e.p === i && nieuw < e.min) { flitsPost(i); return false; } }
+    }
+    v[i] = nieuw;
+    if (v === g.verdeling) g.laatste[i] = wie;
+    return true;
+  }
+  function flitsPost(i) { var p = document.querySelectorAll('.post')[i]; if (p) { p.classList.remove('flits'); void p.offsetWidth; p.classList.add('flits'); } }
+
+  var tv = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {};
+  Kastjes.on(function (e) {
+    var eerste = !fysiek[e.speler];
+    fysiek[e.speler] = true; fysiekNr = e.speler;
+    if (eerste && Object.keys(fysiek).length === 2 && g.fase === 'instellen') { actief = {}; for (var k in fysiek) actief[k] = true; }
+    if (g.fase === 'instellen' && !solo()) { actief[e.speler] = true; var na = Math.max(2, Object.keys(actief).length); if (eerste) g.aantal = na; if (eerste) { tekenInstellen(); teken(); } }
+    if (solo()) actief = {}, actief[fysiekNr] = true;
+    var s = solo() ? (g.fase === 'instellen' ? fysiekNr : beurt) : e.speler;
+    if (g.fase !== 'instellen' && !speler(s)) return; // kastje dat niet meedoet
+
+    if (e.type === 'toets') { toets(e, s); return; }
+    if (e.type === 'knop') {
+      if (g.fase === 'instellen') {
+        if (e.welke === 'rechts') g.aantal = Math.max(2, Math.min(4, g.aantal + e.stap));
+        else g.rondes = g.rondes === 3 ? 4 : 3;
+        tekenInstellen(); teken(); return;
+      }
+      if (g.fase === 'bod' && !g.klaar[s]) {
+        if (e.welke === 'links') g.sel[s] = (g.sel[s] + (e.stap > 0 ? 1 : 3)) % 4;
+        else draai(s, g.bod[s], g.sel[s], e.stap, s);
+        teken(); return;
+      }
+      if (g.fase === 'onderhandelen') {
+        if (e.welke === 'links') g.sel[s] = (g.sel[s] + (e.stap > 0 ? 1 : 3)) % 4;
+        else if (draai(s, g.verdeling, g.sel[s], e.stap, s)) { g.terStemming = {}; }
+        teken(); return;
+      }
+      if (g.fase === 'uitslag' && e.welke === 'rechts' && g.tegen && g.tegen.length && (solo() || g.tegen.indexOf(s) >= 0)) {
+        g.nota = (g.nota + (e.stap > 0 ? 1 : NOTAS.length - 1)) % NOTAS.length; tekenNota(); return;
+      }
+      return;
+    }
+    if (e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt && g.fase === 'onderhandelen') {
+      // eigen bedrag op deze post terugzetten naar het vorige voorstel
+      var i = g.sel[s], terug = g.vorige[i] - g.verdeling[i];
+      if (terug && (terug < 0 || som(g.verdeling) + terug <= plafond())) {
+        var eisBlok = false; for (var k2 in g.eis) { var ee = g.eis[k2]; if (ee && ee.p === i && g.vorige[i] < ee.min) eisBlok = true; }
+        if (!eisBlok) { g.verdeling[i] = g.vorige[i]; g.laatste[i] = s; g.terStemming = {}; }
+      }
+      teken(); return;
+    }
+    if (e.type === 'joystick') {
+      if (g.fase === 'stemming' && !g.stemVast[s]) {
+        var keuze = { rechts: 'voor', links: 'tegen', boven: 'onth' }[e.richting];
+        if (keuze) { g.stem[s] = keuze; teken(); }
+      } else if (g.fase === 'gevolgen' && e.richting === 'boven') naarRechter(solo() ? vrijeRechter() : s);
+      return;
+    }
+    if (e.type === 'joystick-druk' && e.ingedrukt) {
+      if (g.fase === 'stemming' && g.stem[s] && !g.stemVast[s]) {
+        g.stemVast[s] = true;
+        if (solo()) {
+          var idx = g.spelers.indexOf(s);
+          if (idx >= g.spelers.length - 1) { setTimeout(uitslag, 400); }
+          else { beurt = g.spelers[idx + 1]; zetUitleg('stemming', 'Geef het kastje aan ' + kleurNaam(beurt) + '. De anderen kijken even weg.'); }
+        } else if (g.spelers.every(function (sp) { return g.stemVast[sp]; })) setTimeout(uitslag, 400);
+        teken(); return;
+      }
+      if (g.fase === 'onderhandelen' && solo()) { naarStemming(); return; }
+    }
+  });
+  function vrijeRechter() { for (var i = 0; i < g.spelers.length; i++) if (!g.rechter[g.spelers[i]]) return g.spelers[i]; return g.spelers[0]; }
+
+  function toets(e, s) {
+    var f = e.speler; tv[f][e.nr] = e.ingedrukt;
+    if (tv[f][1] && tv[f][2]) combo[f] = true;
+    if (e.ingedrukt) return;
+    if (combo[f]) { if (!tv[f][1] && !tv[f][2]) combo[f] = false; return; }
+    if (g.rechterBezig) return;
+    if (e.nr === 1) {
+      if (g.fase === 'onderhandelen') {
+        if (g.eis[s] && g.eis[s].p === g.sel[s]) { g.eis[s] = null; zetUitleg('eis weg', rolVan(s).naam + ' haalt de eis weg.'); }
+        else if (g.eisGezet[s]) { zetUitleg('al gebruikt', 'Je mag één eis per ronde zetten. Druk toets 1 op de post met je eis om hem weg te halen.'); }
+        else { g.eis[s] = { p: g.sel[s], min: g.verdeling[g.sel[s]] }; g.eisGezet[s] = true; flitsPost(g.sel[s]); }
+        teken();
+      }
+      return;
+    }
+    // toets 2
+    switch (g.fase) {
+      case 'instellen': kaart(null); start(); break;
+      case 'voorstel':
+        if (solo()) { naarBod(); break; }
+        g.klaar[s] = !g.klaar[s];
+        if (g.spelers.every(function (sp) { return g.klaar[sp]; })) naarBod(); else teken();
+        break;
+      case 'bod':
+        var rest = sc().budget - som(g.bod[s]);
+        if (rest !== 0 && !g.klaar[s]) { zetUitleg('eerste bod', rest > 0 ? 'Er ligt nog ' + euro(rest) + '. Verdeel eerst al het geld.' : 'Er moet nog ' + euro(-rest) + ' geschrapt worden.'); return; }
+        if (solo()) {
+          g.klaar[s] = true;
+          var idx = g.spelers.indexOf(s);
+          if (idx >= g.spelers.length - 1) { naarOnderhandelen(); break; }
+          beurt = g.spelers[idx + 1];
+          zetUitleg('eerste bod', 'Geef het kastje aan ' + kleurNaam(beurt) + '. Verdeel het geld zoals jouw achterban het wil. Toets 2 = vast en doorgeven.');
+          teken(); break;
+        }
+        g.klaar[s] = !g.klaar[s];
+        if (g.spelers.every(function (sp) { return g.klaar[sp]; })) naarOnderhandelen(); else teken();
+        break;
+      case 'onderhandelen':
+        if (solo()) {
+          var i2 = g.spelers.indexOf(s); beurt = g.spelers[(i2 + 1) % g.spelers.length];
+          zetUitleg('onderhandelen', 'Het kastje is nu van ' + kleurNaam(beurt) + ' (' + rolVan(beurt).naam + '). Toets 1 = eis · toets 2 = doorgeven · joystick indrukken = ter stemming.');
+          teken(); break;
+        }
+        g.terStemming[s] = !g.terStemming[s];
+        var n = g.spelers.filter(function (sp) { return g.terStemming[sp]; }).length;
+        if (n >= meerderheid()) naarStemming(); else teken();
+        break;
+      case 'uitslag':
+        if (g.besluit === 'aangenomen') gevolgen(); else naarOnderhandelen(true);
+        break;
+      case 'provincie': gevolgen(); break;
+      case 'vernietigd': naarOnderhandelen(true, 'De rechter heeft het besluit vernietigd. Pas de begroting aan zodat hij zich aan de wet houdt.'); break;
+      case 'gevolgen': case 'rechterOk':
+        kaart(null);
+        if (g.ronde + 1 >= g.rondes) einde(); else { g.ronde++; nieuweRonde(); }
+        break;
+      case 'einde': instellen(); break;
+    }
+  }
+
+  // ---------- rolkaarten om te printen ----------
+  function rolkaarten() {
+    var html = ROLLEN.map(function (r) {
+      return '<div class="rk" style="--rk:' + r.kleur + '"><h3 style="color:' + r.kleur + '">' + r.naam + '</h3><p><b>Je achterban:</b> ' + r.achterban + '</p><p><b>Wil vooral:</b> ' + r.wil + '</p><p><b>Gevoelig punt:</b> ' + r.gevoelig + '</p><ul>' +
+        SCEN.map(function (s) {
+          var d = s.doel[r.id], top = [0, 1, 2, 3].sort(function (a, b) { return d[b] - d[a]; }).slice(0, 2);
+          return '<li><b>' + s.titel + ':</b> het belangrijkst is ' + s.posten[top[0]].naam.toLowerCase() + ', daarna ' + s.posten[top[1]].naam.toLowerCase() + '. <b>Harde eis:</b> ' + s.eis[r.id].t + '</li>';
+        }).join('') + '</ul></div>';
+    }).join('');
+    html += '<div class="rk" style="--rk:#111;grid-column:1 / -1"><h3>Wettenkaart van Kwartwijk</h3>' + WETTEN.map(function (w) { return '<p><b>' + w.nr + '</b> ' + w.tekst + '</p>'; }).join('') +
+      '<p style="color:#77776f">Breekt een aangenomen besluit een wet? Dan mag elk raadslid één keer per spel naar de rechter (joystick omhoog bij de gevolgen).</p></div>';
+    document.getElementById('kaartenInhoud').innerHTML = html;
+  }
+  rolkaarten();
+  document.getElementById('kaartenKnop').addEventListener('click', function () { document.getElementById('rolkaarten').showModal(); });
+  document.getElementById('opnieuwKnop').addEventListener('click', function () { this.blur(); instellen(); });
+
+  window.gemeenteraad = g; // handig bij testen
+  instellen();
+})();
+</script>
+</body>
+</html>
