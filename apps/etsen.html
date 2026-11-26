@@ -138,8 +138,10 @@
     sp.forEach(function (s, i) {
       verdeling[(i + st.schuif) % n].forEach(function (t) { wieDoetWat[TAKEN[t].id].push(s); });
     });
+    var SOLO = { hor: 'Knop rechts draaien of joystick links/rechts.', ver: 'Knop links draaien of joystick omhoog/omlaag.', kleur: 'Toets 2: kleur. Knop rechts indrukken: dikte.', pen: 'Joystick indrukken: pen op of neer.' };
     TAKEN.forEach(function (t) {
       var el = kaarten[t.id], w = wieDoetWat[t.id];
+      el.querySelector('.uitleg').textContent = sp.length === 1 ? SOLO[t.id] : t.uitleg;
       el.style.setProperty('--k', KLEUR[w[0]] || '#ccc');
       el.querySelector('.wie').innerHTML = w.length ? w.map(function (s) { return '<span style="--k:' + KLEUR[s] + '">speler ' + s + '</span>'; }).join('') : '<em>niemand</em>';
     });
@@ -225,6 +227,16 @@
     if (!actief[s]) { actief[s] = true; verdeel(); }
     var taken = taakVan(s);
     var heeft = function (t) { return taken.indexOf(t) >= 0; };
+    var alleen = Object.keys(actief).length === 1;
+    // Eén kastje = net een etch-a-sketch: knop links op-neer, knop rechts links-rechts.
+    if (alleen && e.type === 'knop') {
+      if (e.welke === 'rechts') { zet(st.x + e.stap * STAP, st.y); hoek.r += e.stap * 15; }
+      else { zet(st.x, st.y - e.stap * STAP); hoek.l += e.stap * 15; }
+      return;
+    }
+    if (alleen && e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt) {
+      var DIK = [2, 4, 6, 10, 16, 24]; st.dikte = DIK[(DIK.indexOf(st.dikte) + 1) % DIK.length] || 6; return;
+    }
     if (e.type === 'knop') {
       // knop rechts = je eerste taak. Knop links = je tweede taak, of bij één taak de extra instelling.
       var t = e.welke === 'rechts' ? taken[0] : (taken[1] || (taken[0] === 'kleur' ? 'dikte' : taken[0] === 'pen' ? 'pen' : taken[0]));
@@ -249,6 +261,7 @@
     var lang = performance.now() - (tb[p + e.nr] || 0) > 800;
     if (e.nr === 1) nieuweOpdracht(st.op + 1);
     if (e.nr === 2 && lang) nieuweOpdracht(st.op);
+    else if (e.nr === 2 && Object.keys(actief).length === 1) { st.kleur = (st.kleur + 1) % KLEUREN.length; Kastjes.led(p, KLEUREN[st.kleur] === '#111111' ? '#888888' : KLEUREN[st.kleur]); }
     else if (e.nr === 2) { st.schuif++; verdeel(); }
   }
 

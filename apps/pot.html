@@ -84,7 +84,12 @@
   var MAX = 40, DAGEN = 6, PRATEN_VANAF = 4;
   var st, actief = {};
 
+  // Eén kastje: het kastje gaat rond. Dag 1 bepaalt hoeveel spelers er zijn.
+  var fysiek = {}, fysiekNr = 1, beurt = 1, groepVast = false;
+  function solo() { return Object.keys(fysiek).length <= 1; }
+  function led(s, c) { Kastjes.led(solo() ? fysiekNr : s, c); }
   function nieuwSpel() {
+    if (solo()) { actief = {}; actief[1] = true; beurt = 1; groepVast = false; }
     st = { dag: 1, pot: MAX, fase: 'kiezen', sp: {}, geschiedenis: [] };
     for (var s = 1; s <= 4; s++) st.sp[s] = { keuze: 0, vast: false, totaal: 0, open: false };
     document.getElementById('eind').classList.remove('aan');
@@ -112,7 +117,7 @@
     var tik = ''; for (var i = 0; i < 10; i++) tik += '<i></i>';
     el.innerHTML = '<div class="top"><span class="badge">' + s + '</span><span class="naam">Speler ' + s + '</span></div>' +
       '<div class="keuze">' + kaart + '<div style="display:grid;gap:6px"><div class="status ' + (p.vast ? 'vast' : '') + '">' +
-      (!actief[s] ? 'druk iets om mee te doen' : p.vast ? '✓ vast' : 'kiest… tel je klikken') + '</div><div class="tikken" id="tk' + s + '">' + tik + '</div></div></div>' +
+      (!actief[s] ? (solo() ? (groepVast ? 'doet niet mee' : 'wacht op het kastje') : 'druk iets om mee te doen') : p.vast ? '✓ vast' : solo() && s !== beurt ? 'wacht op het kastje' : solo() ? '▶ aan de beurt · tel je klikken' : 'kiest… tel je klikken') + '</div><div class="tikken" id="tk' + s + '">' + tik + '</div></div></div>' +
       '<div class="rij"><span>verzameld</span><b>' + p.totaal + ' GB</b></div>';
   }
   function tik(s) {
@@ -129,7 +134,7 @@
     st.fase = 'onthullen';
     var lijst = []; for (var s = 1; s <= 4; s++) if (actief[s]) lijst.push(s);
     lijst.forEach(function (s, i) {
-      setTimeout(function () { st.sp[s].open = true; hoek(s); Kastjes.led(s, KLEUR[s]); }, 500 + i * 700);
+      setTimeout(function () { st.sp[s].open = true; hoek(s); led(s, KLEUR[s]); }, 500 + i * 700);
     });
     setTimeout(function () { uitslag(lijst); }, 600 + lijst.length * 700);
   }
@@ -149,7 +154,7 @@
       kop.textContent = 'samen gepakt: ' + totaal + ' van ' + st.pot + ' GB';
       tekst.textContent = 'Overbelast! De hotspot crasht. Niemand krijgt iets.';
       st.pot = 0;
-      lijst.forEach(function (s) { Kastjes.led(s, '#ff0000'); });
+      lijst.forEach(function (s) { led(s, "#ff0000"); });
     }
     document.getElementById('uitslag').classList.add('aan');
     teken();
@@ -159,7 +164,8 @@
   function volgendeDag() {
     if (st.pot === 0 || st.dag >= DAGEN) return eind();
     st.dag++; st.fase = 'kiezen';
-    for (var s = 1; s <= 4; s++) { var p = st.sp[s]; p.keuze = 0; p.vast = false; p.open = false; if (actief[s]) Kastjes.led(s, '#303030'); }
+    for (var s = 1; s <= 4; s++) { var p = st.sp[s]; p.keuze = 0; p.vast = false; p.open = false; if (actief[s] && !solo()) Kastjes.led(s, '#303030'); }
+    if (solo()) { beurt = 1; while (!actief[beurt] && beurt < 4) beurt++; led(beurt, '#303030'); }
     document.getElementById('uitslag').classList.remove('aan');
     document.getElementById('uitleg').innerHTML = '<span class="label">dag ' + st.dag + '</span>Draai knop rechts: elke klik is 1 GB (max 10). Toets 2 = vastzetten, toets 1 = opnieuw kiezen.' + (st.dag >= PRATEN_VANAF ? ' Overleggen mag.' : ' Niet praten.');
     teken();
@@ -187,21 +193,49 @@
   }
 
   var tv = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {};
+  function soloUitleg(t) { document.getElementById('uitleg').innerHTML = '<span class="label">één kastje · om de beurt</span>' + t; }
   Kastjes.on(function (e) {
-    var s = e.speler, p = st.sp[s];
-    if (!actief[s]) { actief[s] = true; Kastjes.led(s, '#303030'); hoek(s); }
+    var eerste = !fysiek[e.speler];
+    fysiek[e.speler] = true; fysiekNr = e.speler;
+    if (eerste && Object.keys(fysiek).length === 2) { for (var k = 1; k <= 4; k++) if (!fysiek[k] && !st.sp[k].vast) actief[k] = false; } // ieder weer een eigen kastje
+    if (eerste && solo()) { teken(); soloUitleg('<b style="color:' + KLEUR[1] + '">Speler 1</b> begint: draai knop rechts (elke klik = 1 GB), toets 2 = vastzetten. Dan geef je het kastje door.'); }
+    var s = solo() ? beurt : e.speler, p = st.sp[s], f = e.speler;
+    if (solo() && groepVast && !actief[s]) { beurt = 1; while (!actief[beurt] && beurt < 4) beurt++; s = beurt; p = st.sp[s]; }
+    if (!actief[s] && !(solo() && groepVast)) { actief[s] = true; led(s, '#303030'); hoek(s); }
+    if (!actief[s]) return;
     if (e.type === 'knop' && e.welke === 'rechts' && st.fase === 'kiezen' && !p.vast) {
       p.keuze = Math.max(0, Math.min(10, p.keuze + e.stap)); tik(s);
-      Kastjes.led(s, '#ffffff'); clearTimeout(p.ledT); p.ledT = setTimeout(function () { Kastjes.led(s, '#303030'); }, 80);
+      led(s, '#ffffff'); clearTimeout(p.ledT); p.ledT = setTimeout(function () { led(s, '#303030'); }, 80);
+    }
+    if (e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt && solo() && st.fase === 'kiezen' && !groepVast) {
+      if (!p.vast) { actief[s] = false; hoek(s); }
+      groepVast = true; if (iedereenVast()) onthul();
+      return;
     }
     if (e.type !== 'toets') return;
-    tv[s][e.nr] = e.ingedrukt;
-    if (tv[s][1] && tv[s][2]) combo[s] = true;
+    tv[f][e.nr] = e.ingedrukt;
+    if (tv[f][1] && tv[f][2]) combo[f] = true;
     if (e.ingedrukt) return;
-    if (combo[s]) { if (!tv[s][1] && !tv[s][2]) combo[s] = false; return; }
+    if (combo[f]) { if (!tv[f][1] && !tv[f][2]) combo[f] = false; return; }
+    if (st.fase === 'kiezen' && solo() && e.nr === 2 && !p.vast) {
+      p.vast = true; led(s, KLEUR[s]); hoek(s);
+      var volgende = s + 1;
+      if (!groepVast) {
+        if (volgende > 4) { groepVast = true; onthul(); return; }
+        beurt = volgende; actief[beurt] = true; hoek(beurt);
+        soloUitleg('Geef het kastje aan <b style="color:' + KLEUR[beurt] + '">speler ' + beurt + '</b>. Iedereen geweest? Druk knop rechts in: dan wordt het onthuld.');
+      } else {
+        while (volgende <= 4 && !actief[volgende]) volgende++;
+        if (volgende > 4) { onthul(); return; }
+        beurt = volgende; hoek(beurt);
+        soloUitleg('Geef het kastje aan <b style="color:' + KLEUR[beurt] + '">speler ' + beurt + '</b>.');
+      }
+      setTimeout(function () { led(beurt, '#303030'); }, 500);
+      return;
+    }
     if (st.fase === 'kiezen') {
-      if (e.nr === 2) { p.vast = true; Kastjes.led(s, KLEUR[s]); hoek(s); if (iedereenVast()) onthul(); }
-      if (e.nr === 1 && p.vast) { p.vast = false; p.keuze = 0; Kastjes.led(s, '#303030'); hoek(s); }
+      if (e.nr === 2 && !solo()) { p.vast = true; Kastjes.led(s, KLEUR[s]); hoek(s); if (iedereenVast()) onthul(); }
+      if (e.nr === 1 && p.vast) { p.vast = false; p.keuze = 0; led(s, '#303030'); hoek(s); }
       if (e.nr === 1 && !p.vast) { p.keuze = 0; hoek(s); }
     } else if (st.fase === 'uitslag' && e.nr === 2) volgendeDag();
     else if (st.fase === 'eind' && e.nr === 2) nieuwSpel();

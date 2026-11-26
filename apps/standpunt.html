@@ -91,6 +91,7 @@
 
   function nieuweStelling(i) {
     st.i = (i + STELLINGEN.length) % STELLINGEN.length; st.onthuld = false;
+    if (solo()) { beurt = 1; actief = {}; actief[1] = true; }
     for (var s = 1; s <= 4; s++) {
       var p = sp[s];
       p.x = (s % 2 ? -1 : 1) * 0.08; p.y = (s < 3 ? -1 : 1) * 0.08; p.klaar = false; p.eerst = null;
@@ -101,7 +102,8 @@
     document.getElementById('nr').textContent = st.i + 1;
     document.getElementById('tot').textContent = STELLINGEN.length;
     document.getElementById('gem').classList.remove('aan');
-    zetVraag('zo werkt het', st.blind ? 'Iedereen zet zijn stip, onzichtbaar voor de rest. Druk op toets 2 als je klaar bent. Als iedereen klaar is, zie je waar iedereen staat.' : 'Open ronde: iedereen ziet elkaars stip meteen. Praat erover terwijl je schuift.');
+    if (solo()) zetVraag('één kastje: om de beurt', st.blind ? '<b style="color:' + KLEUR[1] + '">Speler 1</b> begint. Zet je stip en druk op toets 2. Daarna geef je het kastje door. Iedereen geweest? Druk knop rechts in om te onthullen.' : 'Open ronde: zet je stip, druk op toets 2 en geef het kastje door aan de volgende.');
+    else zetVraag('zo werkt het', st.blind ? 'Iedereen zet zijn stip, onzichtbaar voor de rest. Druk op toets 2 als je klaar bent. Als iedereen klaar is, zie je waar iedereen staat.' : 'Open ronde: iedereen ziet elkaars stip meteen. Praat erover terwijl je schuift.');
     tekenAssen(); hoeken();
   }
   function zetVraag(kop, tekst) { document.getElementById('vraag').innerHTML = '<span class="label">' + kop + '</span>' + tekst; }
@@ -126,7 +128,7 @@
       var eens = Math.round((p.x + 1) * 50), bel = Math.round((1 - p.y) * 50);
       var toon = !st.blind || st.onthuld;
       el.innerHTML = '<div class="top"><span class="badge">' + s + '</span><span class="naam">Speler ' + s + '</span></div>' +
-        '<div class="status ' + (p.klaar ? 'klaar' : '') + '">' + (!actief[s] ? 'druk iets om mee te doen' : p.klaar ? '✓ klaar' : 'kiest…') + '</div>' +
+        '<div class="status ' + (p.klaar ? 'klaar' : '') + '">' + (!actief[s] ? (solo() ? 'wacht op het kastje' : 'druk iets om mee te doen') : p.klaar ? '✓ klaar' : solo() && s === beurt ? '▶ aan de beurt' : 'kiest…') + '</div>' +
         '<div class="rij"><span>eens</span><b>' + (toon ? eens + '%' : '••') + '</b></div>' +
         '<div class="rij"><span>belangrijk</span><b>' + (toon ? bel + '%' : '••') + '</b></div>' +
         '<div class="rij"><span>zekerheid</span><b>' + '■'.repeat(p.zeker) + '□'.repeat(5 - p.zeker) + '</b></div>';
@@ -164,26 +166,60 @@
     else zetVraag('gespreksvraag', '<b style="color:' + KLEUR[a] + '">Speler ' + a + '</b> en <b style="color:' + KLEUR[b] + '">speler ' + b + '</b> staan het verst uit elkaar. Leg om de beurt uit waarom je daar staat. Wie overtuigd raakt, mag zijn stip verschuiven.');
   }
 
+  // Eén kastje: het kastje speelt om de beurt speler 1, 2, 3 en 4 (doorgeven).
+  var fysiek = {}, fysiekNr = 1, beurt = 1;
+  function solo() { return Object.keys(fysiek).length <= 1; }
   Kastjes.on(function (e) {
-    var s = e.speler, p = sp[s];
+    var eerste = !fysiek[e.speler];
+    fysiek[e.speler] = true; fysiekNr = e.speler;
+    if (eerste && Object.keys(fysiek).length === 2) { // tweede kastje erbij: terug naar ieder zijn eigen kastje
+      for (var k in sp) if (!fysiek[k]) actief[k] = false;
+    }
+    var s = solo() ? beurt : e.speler, p = sp[s];
+    if (eerste && solo()) nieuweStelling(st.i);
+    if (!actief[s] && solo() && st.onthuld) return;
     if (!actief[s]) { actief[s] = true; Kastjes.led(s, st.onthuld ? KLEUR[s] : '#202020'); if (st.onthuld) p.eerst = { x: p.x, y: p.y }; }
     if (e.type === 'knop' && e.welke === 'links') p.zeker = Math.max(1, Math.min(5, p.zeker + e.stap));
     else if (e.type === 'knop' && e.welke === 'rechts') nieuweStelling(st.i + e.stap);
-    else if (e.type === 'toets') toets(e);
+    else if (e.type === 'toets') toets(e, s);
+    else if (e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt && solo() && st.blind && !st.onthuld) {
+      var n = 0; for (var k = 1; k <= 4; k++) if (actief[k] && sp[k].klaar) n++;
+      if (n) { if (!sp[beurt].klaar) actief[beurt] = false; onthul(); }
+    }
     hoeken();
   });
   var tv = { 1: {}, 2: {}, 3: {}, 4: {} }, combo = {};
-  function toets(e) {
-    var s = e.speler; tv[s][e.nr] = e.ingedrukt;
-    if (tv[s][1] && tv[s][2]) combo[s] = true;
+  function toets(e, s) {
+    var f = e.speler; tv[f][e.nr] = e.ingedrukt;
+    if (tv[f][1] && tv[f][2]) combo[f] = true;
     if (e.ingedrukt) return;
-    if (combo[s]) { if (!tv[s][1] && !tv[s][2]) combo[s] = false; return; }
+    if (combo[f]) { if (!tv[f][1] && !tv[f][2]) combo[f] = false; return; }
+    if (e.nr === 2 && solo()) { soloDoorgeven(s); return; }
     if (e.nr === 1) { st.blind = !st.blind; document.getElementById('modus').textContent = st.blind ? 'blind' : 'open'; nieuweStelling(st.i); }
     if (e.nr === 2 && !st.onthuld && st.blind) {
       sp[s].klaar = !sp[s].klaar;
       Kastjes.led(s, sp[s].klaar ? KLEUR[s] : '#202020');
       if (iedereenKlaar()) setTimeout(onthul, 350);
     }
+  }
+
+  function soloDoorgeven(s) {
+    if (st.blind && !st.onthuld) {
+      sp[s].klaar = true; Kastjes.led(fysiekNr, KLEUR[s]);
+      if (s >= 4) { setTimeout(onthul, 350); return; }
+      beurt = s + 1; actief[beurt] = true;
+      setTimeout(function () { Kastjes.led(fysiekNr, KLEUR[beurt]); }, 600);
+      zetVraag('geef het kastje door', 'Geef het kastje aan <b style="color:' + KLEUR[beurt] + '">speler ' + beurt + '</b>. Niet kijken waar de anderen staan! Iedereen geweest? Druk knop rechts in om te onthullen.');
+    } else {
+      // na het onthullen (of in een open ronde): de volgende mag zijn stip verschuiven
+      var max = 1; for (var k = 1; k <= 4; k++) if (actief[k]) max = k;
+      if (!st.onthuld && beurt === max && max < 4) { beurt = max + 1; actief[beurt] = true; }
+      else beurt = beurt % max + 1;
+      if (st.onthuld && !sp[beurt].eerst) sp[beurt].eerst = { x: sp[beurt].x, y: sp[beurt].y };
+      Kastjes.led(fysiekNr, KLEUR[beurt]);
+      zetVraag('aan de beurt', '<b style="color:' + KLEUR[beurt] + '">Speler ' + beurt + '</b> heeft het kastje. Toets 2 = doorgeven aan de volgende.');
+    }
+    hoeken();
   }
 
   var vorige = performance.now();
@@ -193,7 +229,7 @@
     for (var s = 1; s <= 4; s++) {
       var p = sp[s];
       if (actief[s] && !p.klaar || (actief[s] && st.onthuld)) {
-        var j = Kastjes.joystick(s);
+        var j = solo() ? (s === beurt ? Kastjes.joystick(fysiekNr) : { x: 0, y: 0 }) : Kastjes.joystick(s);
         if (j.x || j.y) { p.x = Math.max(-0.96, Math.min(0.96, p.x + j.x * 0.7 * dt)); p.y = Math.max(-0.94, Math.min(0.94, p.y + j.y * 0.7 * dt)); bewogen = true; }
       }
       var q = px(p), d = 26 + p.zeker * 9;
