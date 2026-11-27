@@ -69,8 +69,8 @@
 
 <section class="onder" id="onder"></section>
 
-<script src="../kastjes.js"></script>
-<script src="../thuis.js"></script>
+<script src="../kastjes.js?v=3"></script>
+<script src="../thuis.js?v=3"></script>
 <script>
 (function () {
 'use strict';
@@ -539,6 +539,7 @@ function bijwerken() {
 // Ledstrip van elk kastje = budgetbalk: loopt voller naar rechts naarmate er meer is uitgegeven. Te veel uitgegeven: helemaal rood.
 function ledsBijwerken() {
   var b = besteed(), tot = staat.budget;
+  if (!Kastjes.ledBalk) { console.warn('Oude kastjes.js: geen ledbalk. Herlaad met Cmd+Shift+R.'); for (var t = 1; t <= 4; t++) if (SPELERS[t].actief) Kastjes.led(t, b > tot ? '#ff2a1a' : KLEUR[t]); return; }
   for (var s = 1; s <= 4; s++) {
     if (!SPELERS[s].actief) continue;
     if (b > tot) Kastjes.ledBalk(s, '#ff2a1a', 1); else Kastjes.ledBalk(s, KLEUR[s], Math.ceil(b / tot * 8 - 1e-9) / 8); // eerste aankoop = eerste led
