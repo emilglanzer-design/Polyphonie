@@ -17,7 +17,8 @@
  *
  *   Kastjes.joystick(speler)   -> { x, y } tussen -1 en 1 (voor vloeiend verplaatsen)
  *   Kastjes.led(speler, '#ff7a1a')   ledstrip in een kleur zetten
- *   Kastjes.onLed(fn)          fn(speler, kleur) voor een virtuele ledstrip op het scherm
+ *   Kastjes.ledBalk(speler, '#ff7a1a', 0.4)   ledstrip als balk: 0 = uit, 1 = vol (van links naar rechts)
+ *   Kastjes.onLed(fn)          fn(speler, kleur, deel) voor een virtuele ledstrip op het scherm (deel 0..1)
  *   Kastjes.onStatus(fn)       fn({ midi: 'aan' | 'geen' | 'geblokkeerd', kastjes: n })
  *   Kastjes.toetsen            de toetsenbordindeling per speler (voor een hulpscherm)
  *
@@ -30,6 +31,8 @@
  *   Noot 60 joystick indrukken, 61 knop links indrukken, 62 knop rechts indrukken,
  *   Noot 63 toets 1, 64 toets 2   (note on = ingedrukt, note off of velocity 0 = los)
  *   Naar het kastje: CC 20/21/22 = rood/groen/blauw 0..127 op het kanaal van de speler.
+ *                    CC 23 = hoe vol de ledstrip is, 0..127 (127 = alle leds, zo staat hij bij opstarten).
+ *                    Oudere Pico-code negeert CC 23: dan blijft de hele strip gewoon in de kleur.
  *
  * Terugvaloptie zonder Chrome: het kastje meldt zich als toetsenbord en stuurt precies
  * de toetsen hieronder. Dan werkt elke pagina ook in Safari.
@@ -183,7 +186,7 @@
       access.outputs.forEach(function (o) { midiOut.push(o); });
       zetStatus('aan', n);
       // leds opnieuw zetten na in- of uitpluggen
-      Object.keys(ledKleur).forEach(function (s) { stuurLed(+s, ledKleur[s]); });
+      Object.keys(ledKleur).forEach(function (s) { stuurLed(+s, ledKleur[s]); stuurDeel(+s, ledDeel[s]); });
     }
     access.onstatechange = verbind;
     verbind();
@@ -198,7 +201,7 @@
   }
 
   // ---------- ledstrip ----------
-  var ledKleur = {};
+  var ledKleur = {}, ledDeel = {};
   function hexNaarRgb(hex) {
     var h = hex.replace('#', '');
     if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
@@ -217,15 +220,25 @@
     });
   }
 
+  function stuurDeel(s, deel) {
+    if (!midiOut.length || deel == null) return;
+    var v = Math.max(0, Math.min(127, Math.round(deel * 127)));
+    midiOut.forEach(function (o) { try { o.send([0xb0 | (s - 1), 23, v]); } catch (e) {} });
+  }
+  function zetLed(speler, kleur, deel) {
+    var andereKleur = ledKleur[speler] !== kleur, anderDeel = ledDeel[speler] !== deel;
+    if (!andereKleur && !anderDeel) return;
+    ledKleur[speler] = kleur; ledDeel[speler] = deel;
+    if (andereKleur) stuurLed(speler, kleur);
+    if (anderDeel) stuurDeel(speler, deel);
+    ledHandlers.forEach(function (fn) { try { fn(speler, kleur, deel); } catch (e) {} });
+  }
+
   window.Kastjes = {
     on: function (fn) { handlers.push(fn); },
     joystick: joystick,
-    led: function (speler, kleur) {
-      if (ledKleur[speler] === kleur) return;
-      ledKleur[speler] = kleur;
-      stuurLed(speler, kleur);
-      ledHandlers.forEach(function (fn) { try { fn(speler, kleur); } catch (e) {} });
-    },
+    led: function (speler, kleur) { zetLed(speler, kleur, 1); },
+    ledBalk: function (speler, kleur, deel) { zetLed(speler, kleur, Math.max(0, Math.min(1, Math.round(deel * 8) / 8))); },
     onLed: function (fn) { ledHandlers.push(fn); },
     onStatus: function (fn) { statusHandlers.push(fn); fn(status); },
     toetsen: TOETSEN

@@ -27,7 +27,7 @@
 .knoppen{display:flex;gap:8px}
 .onder{position:fixed;left:56px;right:16px;bottom:14px;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kaart{padding:10px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;min-height:96px;transition:opacity .3s}
-.kaart.slaapt{opacity:.5}
+.kaart.slaapt{opacity:.72}
 .kaart .badge{width:30px;height:30px;border-radius:8px;background:var(--k);display:grid;place-items:center;font:700 14px var(--m);box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
 .kaart .kopje{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .kaart .kopje b{font:700 14px var(--f)}
@@ -36,6 +36,9 @@
 .kaart .info{font:500 11px var(--m);color:var(--ink-2);display:flex;gap:10px;flex-wrap:wrap}
 .kaart .info b{color:var(--ink)}
 .kaart .tip{grid-column:1 / -1;font:500 9.5px/1.35 var(--m);color:var(--muted);letter-spacing:.01em}
+.ledbalk{display:flex;gap:3px}
+.ledbalk i{width:8px;height:8px;border-radius:50%;background:#c9c9c3;box-shadow:inset 0 1px 1px rgba(0,0,0,.25);transition:background .2s,box-shadow .2s}
+.ledbalk i.aan{background:var(--lk);box-shadow:0 0 7px var(--lk),0 0 2px var(--lk)}
 .kaart .wacht{grid-column:2;font:500 12px var(--f);color:var(--ink-2)}
 @media (max-width:1250px){.meters .meter{min-width:56px}.titel .label{display:none}.boven{gap:14px}}
 </style>
@@ -44,7 +47,7 @@
 <div class="te-achtergrond"><i></i><i></i><i></i><i></i></div>
 <canvas id="kaart"></canvas>
 
-<header class="boven glas">
+<header class="boven glas sterk">
   <div class="titel"><div class="label">Candea College · Eltensestraat 8 · Duiven</div><h1 class="kop">Schoolplein<span class="oranje">.</span></h1></div>
   <div class="budget" id="budget">
     <div class="getal"><span id="besteed">€0</span><small>van <span id="totaal">€150.000</span></small></div>
@@ -59,6 +62,7 @@
   </div>
   <div class="knoppen">
     <button class="knop" id="k-budget" title="Wissel het totaalbudget">Budget</button>
+    <button class="knop" id="k-zoom" title="Inzoomen (ook: scrollen, of knop rechts indrukken)">Zoom 1×</button>
     <button class="knop" id="k-leeg" title="Haal alles weg">Leeg</button>
   </div>
 </header>
@@ -128,7 +132,11 @@ function bevat(it, p, k) {
 // Past dit onderdeel hier? Geeft null of de reden.
 function waarom(it, negeer) {
   var a = PER_ID[it.id], k = botsFactor(a), pts = punten(it, k);
-  for (var i = 0; i < pts.length; i++) if (!opGrond(pts[i])) return 'Past niet: buiten het plein';
+  for (var i = 0; i < pts.length; i++) if (!opGrond(pts[i])) {
+    if (binnen(pts[i], GEO.gebouw) || binnen(pts[i], GEO.schuur)) return 'Past niet: tegen het gebouw';
+    if (binnen(pts[i], GEO.parkeer)) return 'Past niet: op de parkeerplaats';
+    return 'Past niet: buiten het plein';
+  }
   if (a.grond) return null;
   for (var n = 0; n < staat.items.length; n++) {
     var o = staat.items[n];
@@ -156,7 +164,8 @@ function onderCursor(p) {
 
 // ---------- beeld: draaiing en schaal zo kiezen dat het plein het scherm zo goed mogelijk vult ----------
 var cv = document.getElementById('kaart'), ctx = cv.getContext('2d');
-var dpr = 1, W = 0, H = 0, view = { th: 0, s: 1, ox: 0, oy: 0, cx: 0, cy: 0 };
+var dpr = 1, W = 0, H = 0, vak = {}, view = { th: 0, s: 1, basis: 1, zoom: 1, cam: null, fit: [0, 0], scr: [0, 0] };
+var ZOOMS = [1, 2, 3];
 function maat() {
   dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight;
   cv.width = W * dpr; cv.height = H * dpr;
@@ -172,16 +181,40 @@ function maat() {
     var sc = Math.min((rechts - links) / (x1 - x0 + 8), (bodem - top) / (y1 - y0 + 8));
     if (!best || sc > best.s * 1.01) best = { th: th, s: sc, mx: (x0 + x1) / 2, my: (y0 + y1) / 2 };
   }
-  view.th = best.th; view.s = best.s;
-  view.ox = (links + rechts) / 2 - best.mx * best.s; view.oy = (top + bodem) / 2 - best.my * best.s;
+  view.th = best.th; view.basis = best.s;
+  view.fit = draai([best.mx, best.my], -best.th);
+  view.scr = [(links + rechts) / 2, (top + bodem) / 2];
+  vak = { l: links, r: rechts, t: top, b: bodem };
+  if (!view.cam) { view.cam = view.fit.slice(); view.s = view.basis; }
 }
+function draai(p, th) { var c = Math.cos(th), s = Math.sin(th); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c]; }
 function naarScherm(p) {
-  var c = Math.cos(view.th), s = Math.sin(view.th);
-  return [view.ox + (p[0] * c - p[1] * s) * view.s, view.oy + (p[0] * s + p[1] * c) * view.s];
+  var d = draai([p[0] - view.cam[0], p[1] - view.cam[1]], view.th);
+  return [view.scr[0] + d[0] * view.s, view.scr[1] + d[1] * view.s];
 }
 function wereldTransform() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.translate(view.ox, view.oy); ctx.scale(view.s, view.s); ctx.rotate(view.th);
+  ctx.translate(view.scr[0], view.scr[1]); ctx.scale(view.s, view.s); ctx.rotate(view.th); ctx.translate(-view.cam[0], -view.cam[1]);
+}
+// Camera: bij 1× het hele plein. Ingezoomd volgt hij de cursors; staan die ver uit elkaar, dan zoomt hij vanzelf
+// net zo ver uit dat iedereen in beeld blijft.
+function camera(dt) {
+  var doelS = view.basis, doelC = view.fit, act = [];
+  for (var s = 1; s <= 4; s++) if (SPELERS[s].actief) act.push(draai([SPELERS[s].x, SPELERS[s].y], view.th));
+  if (view.zoom > 1 && act.length) {
+    var x0 = Math.min.apply(0, act.map(function (p) { return p[0]; })), x1 = Math.max.apply(0, act.map(function (p) { return p[0]; }));
+    var y0 = Math.min.apply(0, act.map(function (p) { return p[1]; })), y1 = Math.max.apply(0, act.map(function (p) { return p[1]; }));
+    var pas = Math.min((vak.r - vak.l - 320) / Math.max(1, x1 - x0), (vak.b - vak.t - 260) / Math.max(1, y1 - y0));
+    doelS = Math.max(view.basis, Math.min(view.basis * view.zoom, pas));
+    doelC = draai([(x0 + x1) / 2, (y0 + y1) / 2], -view.th);
+  }
+  var k = Math.min(1, dt * 5);
+  view.s += (doelS - view.s) * k;
+  view.cam[0] += (doelC[0] - view.cam[0]) * k; view.cam[1] += (doelC[1] - view.cam[1]) * k;
+}
+function zetZoom(i) {
+  view.zoom = ZOOMS[(i + ZOOMS.length) % ZOOMS.length];
+  document.getElementById('k-zoom').textContent = 'Zoom ' + view.zoom + '×';
 }
 
 // ---------- tijdelijke tekeningen (tot de ChatGPT-plaatjes er zijn) ----------
@@ -388,7 +421,7 @@ for (var s = 1; s <= 4; s++) SPELERS[s] = { nr: s, actief: false, x: startPunten
 
 function activeer(sp) {
   if (sp.actief) return;
-  sp.actief = true; Kastjes.led(sp.nr, KLEUR[sp.nr]); tekenKaartjes();
+  sp.actief = true; ledsBijwerken(); tekenKaartjes();
 }
 function meld(sp, tekst) { sp.melding = tekst; sp.meldT = performance.now() + 1800; }
 
@@ -454,7 +487,7 @@ Kastjes.on(function (e) {
     var st = Math.PI / 12 * e.stap;
     if (sp.vast) sp.vast.rot += st; else sp.rot += st; tekenKaartjes();
   } else if (e.type === 'knop-druk' && e.welke === 'rechts' && e.ingedrukt) {
-    var tgt = sp.vast || sp; tgt.rot = Math.round(tgt.rot / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 2; tekenKaartjes();
+    zetZoom(ZOOMS.indexOf(view.zoom) + 1); meld(sp, 'Zoom ' + view.zoom + '×');
   } else if (e.type === 'toets') {
     // pas bij loslaten uitvoeren, zodat 1+2 samen (terug naar start) niets weghaalt
     sp.toets[e.nr] = e.ingedrukt;
@@ -474,15 +507,15 @@ var TIPS = {};
   for (var s = 1; s <= 4; s++) { var t = T[s]; TIPS[s] = (s === 4 ? '↑←↓→' : n(t.boven) + n(t.links) + n(t.onder) + n(t.rechts)) + ' · ' + n(t.druk) + ' zet/pak · ' + n(t.knopLinksMin) + n(t.knopLinksPlus) + ' kies · ' + n(t.knopRechtsMin) + n(t.knopRechtsPlus) + ' draai · ' + n(t.toets1) + ' weg · ' + n(t.toets2) + ' terug'; }
 })();
 for (s = 1; s <= 4; s++) {
-  var d = document.createElement('div'); d.className = 'kaart glas slaapt'; d.id = 'kaart' + s; d.style.setProperty('--k', KLEUR[s]);
-  d.innerHTML = '<span class="badge">' + s + '</span><div class="kopje"><b>Speler ' + s + '</b><span class="led" style="--k:' + KLEUR[s] + '"></span></div>' +
+  var d = document.createElement('div'); d.className = 'kaart glas sterk slaapt'; d.id = 'kaart' + s; d.style.setProperty('--k', KLEUR[s]);
+  d.innerHTML = '<span class="badge">' + s + '</span><div class="kopje"><b>Speler ' + s + '</b><span class="ledbalk" title="ledstrip van het kastje: zoveel budget is op"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>' +
     '<canvas width="128" height="128"></canvas><div class="wat"></div><div class="info"></div><div class="tip">' + TIPS[s] + '</div>';
   onder.appendChild(d);
 }
 function tekenKaartjes() {
   for (var s = 1; s <= 4; s++) {
     var sp = SPELERS[s], el = document.getElementById('kaart' + s), a = sp.vast ? PER_ID[sp.vast.id] : CAT[sp.keuze];
-    el.classList.toggle('slaapt', !sp.actief); el.querySelector('.led').classList.toggle('aan', sp.actief);
+    el.classList.toggle('slaapt', !sp.actief);
     var mijn = staat.items.filter(function (it) { return it.door === s; }).reduce(function (t, it) { return t + PER_ID[it.id].prijs; }, 0);
     el.querySelector('.wat').textContent = (sp.vast ? 'Vast: ' : '') + a.naam;
     el.querySelector('.info').innerHTML = '<span><b>' + eur(a.prijs) + '</b></span><span>' + mtr(a.b) + '×' + mtr(a.d) + ' m</span><span>' + Math.round(((sp.vast ? sp.vast.rot : sp.rot) * 180 / Math.PI % 360 + 360) % 360) + '°</span><span>besteed ' + eur(mijn) + '</span>';
@@ -500,8 +533,28 @@ function bijwerken() {
   document.getElementById('over').textContent = b > tot ? 'Te veel uitgegeven: ' + eur(b - tot) + ' eraf' : 'Nog ' + eur(tot - b) + ' te besteden · ' + staat.items.length + ' onderdelen';
   document.getElementById('budget').classList.toggle('te-veel', b > tot);
   ['groen', 'sport', 'zit', 'schaduw'].forEach(function (k) { document.getElementById('m-' + k).textContent = m[k]; });
+  ledsBijwerken();
   tekenKaartjes();
 }
+// Ledstrip van elk kastje = budgetbalk: loopt voller naar rechts naarmate er meer is uitgegeven. Te veel uitgegeven: helemaal rood.
+function ledsBijwerken() {
+  var b = besteed(), tot = staat.budget;
+  for (var s = 1; s <= 4; s++) {
+    if (!SPELERS[s].actief) continue;
+    if (b > tot) Kastjes.ledBalk(s, '#ff2a1a', 1); else Kastjes.ledBalk(s, KLEUR[s], Math.ceil(b / tot * 8 - 1e-9) / 8); // eerste aankoop = eerste led
+  }
+}
+Kastjes.onLed(function (s, kleur, deel) {
+  var el = document.getElementById('kaart' + s); if (!el) return;
+  var aan = kleur ? Math.round((deel == null ? 1 : deel) * 8) : 0;
+  el.querySelectorAll('.ledbalk i').forEach(function (i, n) { i.classList.toggle('aan', n < aan); i.style.setProperty('--lk', kleur || '#c9c9c3'); });
+});
+document.getElementById('k-zoom').onclick = function () { zetZoom(ZOOMS.indexOf(view.zoom) + 1); };
+var wielT = 0;
+addEventListener('wheel', function (e) {
+  e.preventDefault(); var nu = performance.now(); if (nu - wielT < 250) return; wielT = nu;
+  zetZoom(Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(view.zoom) + (e.deltaY < 0 ? 1 : -1))));
+}, { passive: false });
 document.getElementById('k-budget').onclick = function () { var i = BUDGETTEN.indexOf(staat.budget); staat.budget = BUDGETTEN[(i + 1) % BUDGETTEN.length]; bewaar(); bijwerken(); };
 var leegKlik = 0;
 document.getElementById('k-leeg').onclick = function (e) {
@@ -611,15 +664,17 @@ function noordpijl() {
   var nx = Math.sin(view.th) * 30, ny = -Math.cos(view.th) * 30; ctx.fillText('N', nx, ny + 3); ctx.restore();
 }
 function schaalbalk() {
-  var y = document.querySelector('.onder').getBoundingClientRect().top - 18, x = W - 40 - 20 * view.s;
-  ctx.fillStyle = '#111'; ctx.fillRect(x, y, 20 * view.s, 3); ctx.fillRect(x, y - 4, 2, 7); ctx.fillRect(x + 20 * view.s - 2, y - 4, 2, 7);
-  ctx.font = '600 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('20 M', x + 10 * view.s, y - 7);
+  var m = 20 * view.s > 260 ? 5 : 20, L = m * view.s;
+  var y = document.querySelector('.onder').getBoundingClientRect().top - 18, x = W - 40 - L;
+  ctx.fillStyle = '#111'; ctx.fillRect(x, y, L, 3); ctx.fillRect(x, y - 4, 2, 7); ctx.fillRect(x + L - 2, y - 4, 2, 7);
+  ctx.font = '600 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText(m + ' M', x + L / 2, y - 7);
 }
 
 // ---------- lus: vloeiend lopen met de joystick ----------
 var vorige = performance.now();
 function lus(nu) {
   var dt = Math.min(.05, (nu - vorige) / 1000); vorige = nu;
+  camera(dt);
   var c = Math.cos(-view.th), sn = Math.sin(-view.th);
   for (var s = 1; s <= 4; s++) {
     var sp = SPELERS[s], j = Kastjes.joystick(s);
